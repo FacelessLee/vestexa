@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
 import { SvgWordmark } from '../components/SvgWordmark';
 import { CoinDrop } from '../components/CoinDrop';
 
@@ -47,13 +48,14 @@ export const UserLogin: React.FC = () => {
       <header className="relative z-20 w-full px-6 sm:px-12 pt-6 pb-4 flex items-center justify-between">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 hover:bg-white text-jeton-orange-900 hover:text-jeton-orange text-xs font-bold transition-all shadow-sm backdrop-blur-md border border-white/60 active:scale-95"
+          aria-label="Return to homepage"
+          title="Return to homepage"
+          className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/70 hover:bg-white text-jeton-orange-900 hover:text-jeton-orange transition-all shadow-sm backdrop-blur-md border border-white/60 active:scale-95"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" />
             <polyline points="12 19 5 12 12 5" />
           </svg>
-          <span>Return to Homepage</span>
         </Link>
 
         <div className="flex items-center gap-3">
@@ -99,54 +101,106 @@ export const UserLogin: React.FC = () => {
             </div>
 
             {/* Interactive Luxury Metal Card Preview */}
-            <div className="w-full max-w-md relative group select-none">
+            <div className="w-full max-w-md relative group select-none cursor-pointer" style={{ perspective: '1200px' }}>
               <div className="absolute -inset-1 bg-gradient-to-r from-jeton-orange/30 to-amber-500/30 rounded-3xl blur-lg opacity-60 group-hover:opacity-100 transition duration-500" />
-              <div
-                className="relative rounded-3xl p-6 sm:p-7 text-white shadow-2xl overflow-hidden border border-white/20 transition-all duration-300 group-hover:scale-[1.01]"
-                style={{
-                  background: 'linear-gradient(135deg, #1C1F26 0%, #111317 60%, #1F1513 100%)',
-                }}
+
+              <motion.div
+                className="relative rounded-3xl w-full"
+                style={{ transformStyle: 'preserve-3d' }}
+                whileHover={{ rotateY: 180 }}
+                transition={{ duration: 0.9, ease: [0.25, 1, 0.5, 1] }}
               >
-                {/* Metallic Card Watermark & Gloss */}
-                <div className="absolute -right-12 -top-12 w-48 h-48 bg-gradient-to-br from-jeton-orange/20 to-transparent rounded-full blur-2xl pointer-events-none" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_70%)] pointer-events-none" />
+                {/* Front Face */}
+                <div
+                  className="relative rounded-3xl p-6 sm:p-7 text-white shadow-2xl overflow-hidden border border-white/20 transition-all duration-300"
+                  style={{
+                    background: 'linear-gradient(135deg, #1C1F26 0%, #111317 60%, #1F1513 100%)',
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                  }}
+                >
+                  {/* Metallic Card Watermark & Gloss */}
+                  <div className="absolute -right-12 -top-12 w-48 h-48 bg-gradient-to-br from-jeton-orange/20 to-transparent rounded-full blur-2xl pointer-events-none" />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_70%)] pointer-events-none" />
 
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <span className="text-[10px] font-extrabold tracking-[0.2em] text-white/50 uppercase">Vestexa Private Black</span>
-                    <div className="text-xs font-bold text-amber-300/90 flex items-center gap-1 mt-0.5">
-                      <span>✦ Tier-1 Multi-Asset Custody</span>
-                    </div>
-                  </div>
-                  {/* Contactless Waves */}
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/60">
-                    <path d="M8.5 16.5a5 5 0 0 1 0-9" />
-                    <path d="M12 19a8.5 8.5 0 0 0 0-14" />
-                    <path d="M15.5 21.5a12 12 0 0 0 0-19" />
-                  </svg>
-                </div>
-
-                {/* EMV Chip Visual */}
-                <div className="w-11 h-8 rounded-md bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 shadow-inner flex items-center justify-center p-1 border border-amber-200/50 mb-6">
-                  <div className="w-full h-full border border-amber-800/40 rounded-sm grid grid-cols-2 grid-rows-2 opacity-60" />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-sm sm:text-base font-mono font-medium tracking-[0.25em] text-white/90">
-                    •••• •••• •••• 4092
-                  </div>
-                  <div className="flex justify-between items-end pt-3 text-[11px] font-medium text-white/60">
+                  <div className="flex justify-between items-start mb-6">
                     <div>
-                      <span className="block text-[9px] uppercase tracking-wider text-white/40">Cardholder</span>
-                      <span className="font-bold text-white tracking-wider">STONEBRIDGE ROSE</span>
+                      <span className="text-[10px] font-extrabold tracking-[0.2em] text-white/50 uppercase">Vestexa Private Black</span>
+                      <div className="text-xs font-bold text-amber-300/90 flex items-center gap-1 mt-0.5">
+                        <span>✦ Tier-1 Multi-Asset Custody</span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="block text-[9px] uppercase tracking-wider text-white/40">Portfolio Status</span>
-                      <span className="font-bold text-emerald-400">VERIFIED • SECURE</span>
+                    {/* Contactless Waves */}
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/60">
+                      <path d="M8.5 16.5a5 5 0 0 1 0-9" />
+                      <path d="M12 19a8.5 8.5 0 0 0 0-14" />
+                      <path d="M15.5 21.5a12 12 0 0 0 0-19" />
+                    </svg>
+                  </div>
+
+                  {/* EMV Chip Visual */}
+                  <div className="w-11 h-8 rounded-md bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 shadow-inner flex items-center justify-center p-1 border border-amber-200/50 mb-6">
+                    <div className="w-full h-full border border-amber-800/40 rounded-sm grid grid-cols-2 grid-rows-2 opacity-60" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-sm sm:text-base font-mono font-medium tracking-[0.25em] text-white/90">
+                      •••• •••• •••• 0000
+                    </div>
+                    <div className="flex justify-between items-end pt-3 text-[11px] font-medium text-white/60">
+                      <div>
+                        <span className="block text-[9px] uppercase tracking-wider text-white/40">Cardholder</span>
+                        <span className="font-bold text-white tracking-wider">VESTEXA MEMBER</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-[9px] uppercase tracking-wider text-white/40">Portfolio Status</span>
+                        <span className="font-bold text-emerald-400">VERIFIED • SECURE</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Back Face */}
+                <div
+                  className="absolute inset-0 rounded-3xl p-6 sm:p-7 text-white shadow-2xl overflow-hidden border border-white/20 flex flex-col justify-between"
+                  style={{
+                    background: 'linear-gradient(135deg, #1C1F26 0%, #111317 60%, #1F1513 100%)',
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    transform: 'rotateY(180deg)',
+                  }}
+                >
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08),transparent_70%)] pointer-events-none" />
+
+                  {/* Magnetic Strip */}
+                  <div className="absolute top-6 left-0 right-0 h-10 bg-[#0B0C0E] border-y border-white/10" />
+
+                  {/* Signature strip & CVV */}
+                  <div className="mt-12 flex items-center gap-3 relative z-10">
+                    <div className="flex-1 h-7 bg-neutral-200/90 rounded px-3 flex items-center justify-between text-neutral-800 font-mono text-xs shadow-inner">
+                      <span className="italic text-[10px] text-neutral-500 font-sans">Authorized Signature</span>
+                      <span className="font-bold tracking-widest text-[11px]">842</span>
+                    </div>
+                  </div>
+
+                  {/* Back Details & Hologram */}
+                  <div className="space-y-2 mt-auto relative z-10">
+                    <p className="text-[8px] text-white/40 leading-tight">
+                      Property of Vestexa Custody Bank NA. Use constitutes acceptance of Private Wealth Member Terms.
+                    </p>
+                    <div className="flex justify-between items-end pt-1 text-[10px] text-white/60">
+                      <div>
+                        <span className="font-mono text-[9px] text-white/70 block">VESTEXA WORLD ELITE</span>
+                        <span className="text-[8px] text-amber-300/80">24/7 Global Concierge</span>
+                      </div>
+                      <div className="flex items-center -space-x-1.5">
+                        <span className="w-5 h-5 rounded-full bg-[#EB001B] opacity-90 inline-block" />
+                        <span className="w-5 h-5 rounded-full bg-[#F79E1B] opacity-90 inline-block" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
             </div>
 
             {/* Live Trust Metrics */}
@@ -203,7 +257,7 @@ export const UserLogin: React.FC = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      placeholder="client@vestexa.com"
+                      placeholder="client@vestexa.org"
                       className="w-full bg-white/80 text-jeton-orange-900 text-sm font-medium rounded-2xl pl-11 pr-4 py-3.5 border border-jeton-orange-50 focus:border-jeton-orange focus:bg-white focus:ring-4 focus:ring-jeton-orange/10 focus:outline-none transition-all placeholder:text-gray-400 shadow-sm"
                     />
                   </div>

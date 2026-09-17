@@ -35,7 +35,7 @@ export function seedDemoData(): void {
 
   const stonebridge = createUserWithId({
     id: 'user-stonebridge',
-    email: 'stonebridge@vestexa.com',
+    email: 'stonebridge@vestexa.org',
     password: 'demo1234',
     fullName: 'Stonebridge Rose',
     username: 'stonebridge',
@@ -112,7 +112,7 @@ export function seedDemoData(): void {
   // ─── Demo Admin ───
 
   createAdmin({
-    email: 'admin@vestexa.com',
+    email: 'admin@vestexa.org',
     password: 'admin1234',
     fullName: 'System Admin (Super Admin)',
     role: 'super_admin',

@@ -198,7 +198,7 @@ const StackViewVisual: React.FC<{ type: StackView['visualType'] }> = ({ type }) 
         <div className="flex justify-between items-end pt-1.5 sm:pt-2">
           <div>
             <div className="text-[8px] sm:text-[9px] uppercase tracking-wider text-white/60 font-semibold">Cardholder</div>
-            <div className="text-xs sm:text-body-small font-medium tracking-wide">ALEXANDER VANE</div>
+            <div className="text-xs sm:text-body-small font-medium tracking-wide">VESTEXA MEMBER</div>
           </div>
           <div className="flex items-center -space-x-1.5 sm:-space-x-2">
             <span className="w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-[#EB001B] opacity-90 inline-block" />

@@ -389,7 +389,7 @@ export const TransfersSection: React.FC<TransfersSectionProps> = ({
                       setAccountNumber(e.target.value);
                       setRecipientName(e.target.value);
                     }}
-                    placeholder="e.g. billogden or stonebridge@vestexa.com"
+                    placeholder="e.g. billogden or stonebridge@vestexa.org"
                     className={`w-full rounded-2xl px-4 py-3 text-sm font-bold border transition-all focus:outline-none ${
                       isDark ? 'bg-[#0D1117] border-gray-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
                     }`}

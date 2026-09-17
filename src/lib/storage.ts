@@ -429,9 +429,9 @@ export function getAdmins(): Admin[] {
   const admins = getItem<Admin>(KEYS.ADMINS);
   let updated = false;
 
-  // Guarantee that the single default super admin (admin@vestexa.com) has super_admin role
+  // Guarantee that the single default super admin (admin@vestexa.org) has super_admin role
   const normalized = admins.map(a => {
-    if (a.email.toLowerCase() === 'admin@vestexa.com' && (!a.isSuperAdmin || a.role !== 'super_admin')) {
+    if (a.email.toLowerCase() === 'admin@vestexa.org' && (!a.isSuperAdmin || a.role !== 'super_admin')) {
       updated = true;
       return { ...a, role: 'super_admin' as const, isSuperAdmin: true };
     }
@@ -462,13 +462,13 @@ export function isSuperAdmin(admin: Admin | null | undefined): boolean {
   return Boolean(
     admin.isSuperAdmin ||
     admin.role === 'super_admin' ||
-    admin.email.toLowerCase() === 'admin@vestexa.com'
+    admin.email.toLowerCase() === 'admin@vestexa.org'
   );
 }
 
 export function createAdmin(data: Omit<Admin, 'id' | 'createdAt'> & { role?: 'super_admin' | 'admin'; isSuperAdmin?: boolean }): Admin {
   const admins = getAdmins();
-  const isTargetSuper = data.email.toLowerCase() === 'admin@vestexa.com' || data.isSuperAdmin || data.role === 'super_admin';
+  const isTargetSuper = data.email.toLowerCase() === 'admin@vestexa.org' || data.isSuperAdmin || data.role === 'super_admin';
 
   const admin: Admin = {
     id: generateId(),
@@ -505,7 +505,7 @@ export function createSubAdmin(
     return { success: false, error: 'An admin account with this email already exists.' };
   }
 
-  if (data.email.toLowerCase() === 'admin@vestexa.com') {
+  if (data.email.toLowerCase() === 'admin@vestexa.org') {
     return { success: false, error: 'Super Admin address is reserved.' };
   }
 

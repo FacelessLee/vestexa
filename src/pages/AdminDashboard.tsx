@@ -1995,7 +1995,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                       <p className={`text-xs leading-relaxed max-w-3xl ${isDark ? 'text-gray-300' : 'text-neutral-700'}`}>
                         Public registration for administrators from the login screen has been permanently deactivated.
-                        Only the current single Super Administrator (<strong className={isDark ? 'text-white' : 'text-neutral-900'}>admin@vestexa.com</strong>) possesses
+                        Only the current single Super Administrator (<strong className={isDark ? 'text-white' : 'text-neutral-900'}>admin@vestexa.org</strong>) possesses
                         the cryptographic authority to provision new operations staff accounts. The system strictly restricts Super Admin status to one overall account.
                       </p>
                     </div>
@@ -2126,7 +2126,7 @@ export const AdminDashboard: React.FC = () => {
                         value={newAdminEmail}
                         onChange={(e) => setNewAdminEmail(e.target.value)}
                         required
-                        placeholder="e.g. m.vance@vestexa.com"
+                            placeholder="e.g. m.vance@vestexa.org"
                         className={`w-full text-sm rounded-2xl px-4 py-3.5 border focus:border-vestexa-coral focus:ring-0 focus:outline-none ${
                           isDark
                             ? 'bg-[#0B0F14] text-white border-gray-800 placeholder:text-gray-600'
