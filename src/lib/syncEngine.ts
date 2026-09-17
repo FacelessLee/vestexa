@@ -1,5 +1,15 @@
-// Real-time synchronization engine connecting browser localStorage with backend server database
+// Real-time synchronization engine connecting browser localStorage with Supabase cloud database
 // Guarantees cross-browser, cross-session consistency for balances, restrictions, and user accounts.
+
+import {
+  isSupabaseConfigured,
+  fetchUsersFromSupabase,
+  updateUserBalanceInSupabase,
+  restrictUsersInSupabase,
+  liftUserRestrictionInSupabase,
+  updateUserProfileInSupabase,
+  initSupabaseRealtime,
+} from './supabase';
 
 const API_BASE = '';
 
@@ -10,6 +20,19 @@ let hasInitialized = false;
 // ─── Direct API Calls ───
 
 export async function fetchServerStorage(): Promise<any | null> {
+  // 1. Prioritize Supabase Cloud Database
+  if (isSupabaseConfigured) {
+    try {
+      const supabaseUsers = await fetchUsersFromSupabase();
+      if (supabaseUsers && supabaseUsers.length > 0) {
+        return { users: supabaseUsers };
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  // 2. Fallback to local server API
   try {
     const res = await fetch(`${API_BASE}/api/storage`, {
       method: 'GET',
@@ -23,6 +46,14 @@ export async function fetchServerStorage(): Promise<any | null> {
 }
 
 export async function pushBalanceUpdate(userId: string, balance: number): Promise<boolean> {
+  // Push to Supabase Cloud Database
+  if (isSupabaseConfigured) {
+    updateUserBalanceInSupabase(userId, balance).catch((err) => {
+      console.warn('[syncEngine] Supabase balance update error:', err);
+    });
+  }
+
+  // Also push to local server API
   try {
     const res = await fetch(`${API_BASE}/api/users/update-balance`, {
       method: 'POST',
@@ -30,8 +61,7 @@ export async function pushBalanceUpdate(userId: string, balance: number): Promis
       body: JSON.stringify({ userId, balance }),
     });
     return res.ok;
-  } catch (e) {
-    console.warn('[syncEngine] Failed to push balance update to server:', e);
+  } catch {
     return false;
   }
 }
@@ -42,6 +72,14 @@ export async function pushRestriction(
   reason: string,
   restrictedBy?: string
 ): Promise<boolean> {
+  // Push to Supabase Cloud Database
+  if (isSupabaseConfigured) {
+    restrictUsersInSupabase(userIds, header, reason, restrictedBy).catch((err) => {
+      console.warn('[syncEngine] Supabase restriction error:', err);
+    });
+  }
+
+  // Also push to local server API
   try {
     const res = await fetch(`${API_BASE}/api/users/restrict`, {
       method: 'POST',
@@ -49,13 +87,20 @@ export async function pushRestriction(
       body: JSON.stringify({ userIds, header, reason, restrictedBy }),
     });
     return res.ok;
-  } catch (e) {
-    console.warn('[syncEngine] Failed to push restriction to server:', e);
+  } catch {
     return false;
   }
 }
 
 export async function pushLiftRestriction(userIds: string[] | string): Promise<boolean> {
+  // Push to Supabase Cloud Database
+  if (isSupabaseConfigured) {
+    liftUserRestrictionInSupabase(userIds).catch((err) => {
+      console.warn('[syncEngine] Supabase lift restriction error:', err);
+    });
+  }
+
+  // Also push to local server API
   try {
     const list = Array.isArray(userIds) ? userIds : [userIds];
     const res = await fetch(`${API_BASE}/api/users/lift-restriction`, {
@@ -64,13 +109,20 @@ export async function pushLiftRestriction(userIds: string[] | string): Promise<b
       body: JSON.stringify({ userIds: list }),
     });
     return res.ok;
-  } catch (e) {
-    console.warn('[syncEngine] Failed to push lift-restriction to server:', e);
+  } catch {
     return false;
   }
 }
 
 export async function pushUserProfile(userId: string, profileData: any): Promise<boolean> {
+  // Push to Supabase Cloud Database
+  if (isSupabaseConfigured) {
+    updateUserProfileInSupabase(userId, profileData).catch((err) => {
+      console.warn('[syncEngine] Supabase profile update error:', err);
+    });
+  }
+
+  // Also push to local server API
   try {
     const res = await fetch(`${API_BASE}/api/users/update-profile`, {
       method: 'POST',
@@ -78,8 +130,7 @@ export async function pushUserProfile(userId: string, profileData: any): Promise
       body: JSON.stringify({ userId, profileData }),
     });
     return res.ok;
-  } catch (e) {
-    console.warn('[syncEngine] Failed to push user profile to server:', e);
+  } catch {
     return false;
   }
 }
@@ -92,8 +143,7 @@ export async function pushFullSync(data: Record<string, any>): Promise<boolean> 
       body: JSON.stringify(data),
     });
     return res.ok;
-  } catch (e) {
-    console.warn('[syncEngine] Failed to push storage sync to server:', e);
+  } catch {
     return false;
   }
 }
@@ -113,7 +163,9 @@ export function applyServerStorageToLocal(serverData: any): void {
         const current = JSON.parse(rawCurrent);
         if (current && current.id) {
           const fresh = serverData.users.find(
-            (u: any) => u.id === current.id || (current.id === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'))
+            (u: any) =>
+              u.id === current.id ||
+              (current.id === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'))
           );
           if (fresh) {
             localStorage.setItem(
@@ -167,13 +219,13 @@ export function applyServerStorageToLocal(serverData: any): void {
   }
 }
 
-// ─── Real-Time Push Stream (Server-Sent Events) ───
+// ─── Real-Time Push Stream (Supabase WebSockets + Server SSE) ───
 
 export function initRealtimeSync(): void {
   if (typeof window === 'undefined') return;
 
-  // Pull initial master state immediately
-  fetchServerStorage().then(data => {
+  // 1. Pull initial master state from Supabase or server immediately
+  fetchServerStorage().then((data) => {
     if (data) {
       applyServerStorageToLocal(data);
     }
@@ -182,7 +234,55 @@ export function initRealtimeSync(): void {
   if (hasInitialized) return;
   hasInitialized = true;
 
-  // Setup EventSource for real-time broadcasts
+  // 2. Subscribe to Supabase Native WebSockets for instant cross-device live sync
+  if (isSupabaseConfigured) {
+    try {
+      initSupabaseRealtime((updatedUser) => {
+        const rawUsers = localStorage.getItem('vestexa_users');
+        if (rawUsers) {
+          const users = JSON.parse(rawUsers);
+          const idx = users.findIndex(
+            (u: any) =>
+              u.id === updatedUser.id ||
+              (updatedUser.id === 'user-bill' &&
+                (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'))
+          );
+          if (idx !== -1) {
+            users[idx] = { ...users[idx], ...updatedUser };
+          } else {
+            users.push(updatedUser);
+          }
+          localStorage.setItem('vestexa_users', JSON.stringify(users));
+
+          // Synchronize active session if current user
+          const rawCurrent = localStorage.getItem('vestexa_current_user');
+          if (rawCurrent) {
+            const current = JSON.parse(rawCurrent);
+            if (
+              current.id === updatedUser.id ||
+              (updatedUser.id === 'user-bill' && (current.id === 'user-bill' || current.email?.includes('bill')))
+            ) {
+              localStorage.setItem(
+                'vestexa_current_user',
+                JSON.stringify({
+                  ...updatedUser,
+                  pinstatus: current.pinstatus !== undefined ? current.pinstatus : updatedUser.pinstatus,
+                })
+              );
+            }
+          }
+        }
+        window.dispatchEvent(
+          new CustomEvent('vestexa_user_updated', { detail: { userId: updatedUser.id, user: updatedUser } })
+        );
+        window.dispatchEvent(new CustomEvent('storage'));
+      });
+    } catch (e) {
+      console.warn('[syncEngine] Error setting up Supabase Realtime:', e);
+    }
+  }
+
+  // 3. Fallback EventSource for local Vite dev server SSE
   const connectSSE = () => {
     if (typeof EventSource === 'undefined') return;
 
@@ -193,33 +293,33 @@ export function initRealtimeSync(): void {
 
       eventSource = new EventSource('/api/storage/events');
 
-      eventSource.onopen = () => {
-        // Connected to server push stream
-      };
-
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-
-          if (data.type === 'connected') {
-            return;
-          }
+          if (data.type === 'connected') return;
 
           if (data.type === 'balance_updated') {
-            // Update local user record
             const rawUsers = localStorage.getItem('vestexa_users');
             if (rawUsers) {
               const users = JSON.parse(rawUsers);
-              const idx = users.findIndex((u: any) => u.id === data.userId || (data.userId === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden')));
+              const idx = users.findIndex(
+                (u: any) =>
+                  u.id === data.userId ||
+                  (data.userId === 'user-bill' &&
+                    (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'))
+              );
               if (idx !== -1) {
                 users[idx].balance = data.balance;
                 localStorage.setItem('vestexa_users', JSON.stringify(users));
 
-                // Update current user if matching
                 const rawCurrent = localStorage.getItem('vestexa_current_user');
                 if (rawCurrent) {
                   const current = JSON.parse(rawCurrent);
-                  if (current.id === users[idx].id || (users[idx].id === 'user-bill' && (current.id === 'user-bill' || current.email?.includes('bill')))) {
+                  if (
+                    current.id === users[idx].id ||
+                    (users[idx].id === 'user-bill' &&
+                      (current.id === 'user-bill' || current.email?.includes('bill')))
+                  ) {
                     current.balance = data.balance;
                     localStorage.setItem('vestexa_current_user', JSON.stringify(current));
                   }
@@ -234,7 +334,10 @@ export function initRealtimeSync(): void {
               const users = JSON.parse(rawUsers);
               const idSet = new Set(data.userIds);
               const updatedUsers = users.map((u: any) => {
-                const isTarget = idSet.has(u.id) || (idSet.has('user-bill') && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'));
+                const isTarget =
+                  idSet.has(u.id) ||
+                  (idSet.has('user-bill') &&
+                    (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'));
                 if (isTarget) {
                   if (data.isRestricted) {
                     return {
@@ -262,24 +365,27 @@ export function initRealtimeSync(): void {
               });
               localStorage.setItem('vestexa_users', JSON.stringify(updatedUsers));
 
-              // Update active session if target
               const rawCurrent = localStorage.getItem('vestexa_current_user');
               if (rawCurrent) {
                 const current = JSON.parse(rawCurrent);
-                const matching = updatedUsers.find((u: any) => u.id === current.id || (current.id === 'user-bill' && u.id === 'user-bill'));
+                const matching = updatedUsers.find(
+                  (u: any) => u.id === current.id || (current.id === 'user-bill' && u.id === 'user-bill')
+                );
                 if (matching) {
-                  localStorage.setItem('vestexa_current_user', JSON.stringify({
-                    ...matching,
-                    pinstatus: current.pinstatus !== undefined ? current.pinstatus : matching.pinstatus,
-                  }));
+                  localStorage.setItem(
+                    'vestexa_current_user',
+                    JSON.stringify({
+                      ...matching,
+                      pinstatus: current.pinstatus !== undefined ? current.pinstatus : matching.pinstatus,
+                    })
+                  );
                 }
               }
             }
             window.dispatchEvent(new CustomEvent('vestexa_user_updated', { detail: { userIds: data.userIds } }));
             window.dispatchEvent(new CustomEvent('storage'));
           } else if (data.type === 'user_updated' || data.type === 'storage_synced') {
-            // Re-fetch entire storage to stay completely up to date
-            fetchServerStorage().then(latest => {
+            fetchServerStorage().then((latest) => {
               if (latest) applyServerStorageToLocal(latest);
             });
           }
@@ -293,8 +399,7 @@ export function initRealtimeSync(): void {
           eventSource.close();
           eventSource = null;
         }
-        // Retry connection in 3s
-        setTimeout(connectSSE, 3000);
+        setTimeout(connectSSE, 4000);
       };
     } catch {
       // EventSource fallback
@@ -303,17 +408,18 @@ export function initRealtimeSync(): void {
 
   connectSSE();
 
-  // Safety periodic polling (every 4s) to ensure synchronization in all tabs/browsers
+  // 4. Background polling fallback (every 5s)
   setInterval(() => {
     if (document.visibilityState === 'visible' && !isSyncing) {
       isSyncing = true;
-      fetchServerStorage().then(latest => {
-        isSyncing = false;
-        if (latest) applyServerStorageToLocal(latest);
-      }).catch(() => {
-        isSyncing = false;
-      });
+      fetchServerStorage()
+        .then((latest) => {
+          isSyncing = false;
+          if (latest) applyServerStorageToLocal(latest);
+        })
+        .catch(() => {
+          isSyncing = false;
+        });
     }
-  }, 4000);
+  }, 5000);
 }
-
