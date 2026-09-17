@@ -1,0 +1,475 @@
+{
+  "users": [
+    {
+      "id": "user-stonebridge",
+      "email": "stonebridge@vestexa.org",
+      "password": "demo1234",
+      "fullName": "Stonebridge Rose",
+      "username": "stonebridge",
+      "accountNumber": "VX-89210041",
+      "balance": 372560,
+      "investedAmount": 58000,
+      "amountSpent": 4500,
+      "roi": 6900,
+      "bonus": 25,
+      "refBonus": 1250,
+      "signupBonusReceived": true,
+      "cardNumber": "4532 8901 2345 4092",
+      "cardHolderName": "Stonebridge Rose",
+      "cardLast4": "4092",
+      "cardExp": "12/27",
+      "address": "742 Evergreen Terrace, Springfield, OR 97477",
+      "phoneNumber": "+1 (555) 234-5678",
+      "country": "United States",
+      "currency": "USD",
+      "accountType": "Private Wealth Tier 1",
+      "pin": "1234",
+      "status": "active",
+      "kycStatus": "verified",
+      "twoFactorEnabled": false,
+      "btcAddress": "bc1q9x37k74x28y5y4h03u821slkdjfs739",
+      "ethAddress": "0x71C8360f3868662967752b069d300063234582A1",
+      "usdtAddress": "TXv97qj49fK4ZpT78Lkm5Y1p8B6sR7o58e",
+      "ssn": "334-92-6789",
+      "idType": "drivers_license",
+      "quickTransferContacts": [
+        {
+          "id": "contact-sarah",
+          "name": "Sarah",
+          "initials": "SR",
+          "avatarBg": "bg-rose-500/20 text-rose-400"
+        },
+        {
+          "id": "contact-alex",
+          "name": "Alex",
+          "initials": "AM",
+          "avatarBg": "bg-emerald-500/20 text-emerald-400"
+        }
+      ],
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "user-bill",
+      "email": "billodgedn@rockmail.com",
+      "password": "Ogden_29",
+      "fullName": "Bill Ogden",
+      "username": "billogden",
+      "accountNumber": "VX-10293847",
+      "balance": 739565.21,
+      "investedAmount": 115000,
+      "amountSpent": 8900,
+      "roi": 11250,
+      "bonus": 25,
+      "refBonus": 4500,
+      "signupBonusReceived": true,
+      "cardNumber": "5412 7522 9018 0877",
+      "cardHolderName": "Bill Ogden",
+      "cardLast4": "0877",
+      "cardExp": "01/27",
+      "address": "100 Wall Street, Suite 1400, New York, NY 10005",
+      "phoneNumber": "+1 (555) 876-5432",
+      "country": "United States",
+      "currency": "USD",
+      "accountType": "Corporate Institutional Wealth",
+      "pin": "1392",
+      "status": "active",
+      "kycStatus": "verified",
+      "twoFactorEnabled": true,
+      "btcAddress": "bc1q67z9m40x67a9a4e03i999alkdfps928",
+      "ethAddress": "0x89C9281f3868662967752b069d300063234512B4",
+      "usdtAddress": "TYv88qj49fK4ZpT78Lkm5Y1p8B6sR7o11z",
+      "ssn": "418-05-1234",
+      "idType": "passport",
+      "quickTransferContacts": [
+        {
+          "id": "contact-ogden",
+          "name": "Ogden Corp",
+          "initials": "OC",
+          "avatarBg": "bg-blue-500/20 text-blue-400"
+        },
+        {
+          "id": "contact-robert",
+          "name": "Robert",
+          "initials": "RM",
+          "avatarBg": "bg-purple-500/20 text-purple-400"
+        }
+      ],
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    }
+  ],
+  "admins": [
+    {
+      "id": "admin-system",
+      "email": "admin@vestexa.org",
+      "password": "admin1234",
+      "fullName": "System Admin (Super Admin)",
+      "role": "super_admin",
+      "isSuperAdmin": true,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "seed-stone-1",
+      "userId": "user-stonebridge",
+      "type": "credit",
+      "amount": 1299,
+      "narration": "Interest on balance",
+      "senderInfo": "Vestexa Treasury",
+      "date": "2026-09-17",
+      "time": "14:45",
+      "category": "Interest",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-stone-2",
+      "userId": "user-stonebridge",
+      "type": "credit",
+      "amount": 800,
+      "narration": "Maintenance fee refund",
+      "senderInfo": "Vestexa Operations",
+      "date": "2026-09-16",
+      "time": "09:30",
+      "category": "Deposit",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-stone-3",
+      "userId": "user-stonebridge",
+      "type": "debit",
+      "amount": 2450,
+      "narration": "Wire transfer to Goldman Sachs",
+      "senderInfo": "Stonebridge Rose",
+      "date": "2026-09-15",
+      "time": "16:22",
+      "category": "Wire Transfer",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-stone-4",
+      "userId": "user-stonebridge",
+      "type": "credit",
+      "amount": 15000,
+      "narration": "Dividend payout — AAPL Q3",
+      "senderInfo": "Apple Inc. Investor Relations",
+      "date": "2026-09-14",
+      "time": "11:00",
+      "category": "Dividend",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-stone-5",
+      "userId": "user-stonebridge",
+      "type": "credit",
+      "amount": 58000,
+      "narration": "Portfolio rebalance settlement",
+      "senderInfo": "Vestexa Investment Desk",
+      "date": "2026-09-12",
+      "time": "08:15",
+      "category": "Investment Return",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-stone-6",
+      "userId": "user-stonebridge",
+      "type": "debit",
+      "amount": 340,
+      "narration": "Annual premium card fee",
+      "senderInfo": "Vestexa Card Services",
+      "date": "2026-09-10",
+      "time": "00:01",
+      "category": "Fee",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-bill-1",
+      "userId": "user-bill",
+      "type": "credit",
+      "amount": 45000,
+      "narration": "Incoming wire — Ogden Enterprises LLC",
+      "senderInfo": "Chase Bank NA / Ogden Enterprises",
+      "date": "2026-09-17",
+      "time": "10:12",
+      "category": "Wire Transfer",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-bill-2",
+      "userId": "user-bill",
+      "type": "debit",
+      "amount": 12800,
+      "narration": "Real estate escrow deposit",
+      "senderInfo": "Bill Ogden",
+      "date": "2026-09-16",
+      "time": "14:30",
+      "category": "Wire Transfer",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-bill-3",
+      "userId": "user-bill",
+      "type": "credit",
+      "amount": 3200,
+      "narration": "Treasury yield sweep — monthly",
+      "senderInfo": "Vestexa Treasury",
+      "date": "2026-09-15",
+      "time": "06:00",
+      "category": "Interest",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-bill-4",
+      "userId": "user-bill",
+      "type": "credit",
+      "amount": 89750,
+      "narration": "Sale proceeds — MSFT 500 shares",
+      "senderInfo": "Vestexa Brokerage",
+      "date": "2026-09-14",
+      "time": "15:45",
+      "category": "Investment Return",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "seed-bill-5",
+      "userId": "user-bill",
+      "type": "debit",
+      "amount": 5600,
+      "narration": "International wire — HSBC London",
+      "senderInfo": "Bill Ogden",
+      "date": "2026-09-12",
+      "time": "13:20",
+      "category": "Wire Transfer",
+      "status": "completed",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    }
+  ],
+  "investmentPlans": [
+    {
+      "id": "plan-1",
+      "name": "Starter Yield Tier",
+      "minAmount": 500,
+      "maxAmount": 4999,
+      "roiPercentage": 2.5,
+      "roiInterval": "daily",
+      "durationDays": 30,
+      "type": "main",
+      "isActive": true,
+      "returnCapital": true,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "plan-2",
+      "name": "Balanced Growth Matrix",
+      "minAmount": 5000,
+      "maxAmount": 24999,
+      "roiPercentage": 4.2,
+      "roiInterval": "daily",
+      "durationDays": 60,
+      "type": "main",
+      "isActive": true,
+      "returnCapital": true,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "plan-3",
+      "name": "Institutional Alpha Desk",
+      "minAmount": 25000,
+      "maxAmount": 250000,
+      "roiPercentage": 7.8,
+      "roiInterval": "weekly",
+      "durationDays": 90,
+      "type": "main",
+      "isActive": true,
+      "returnCapital": true,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "plan-4",
+      "name": "Venture High-Yield Sprint (Promo)",
+      "minAmount": 1000,
+      "maxAmount": 15000,
+      "roiPercentage": 12,
+      "roiInterval": "weekly",
+      "durationDays": 21,
+      "type": "promo",
+      "isActive": true,
+      "returnCapital": true,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "plan-5",
+      "name": "Crypto Staking & Liquidity Pool",
+      "minAmount": 2500,
+      "maxAmount": 100000,
+      "roiPercentage": 1.8,
+      "roiInterval": "daily",
+      "durationDays": 45,
+      "type": "main",
+      "isActive": true,
+      "returnCapital": true,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    }
+  ],
+  "userInvestments": [
+    {
+      "id": "inv-stone-1",
+      "userId": "user-stonebridge",
+      "planId": "plan-2",
+      "planName": "Balanced Growth Matrix",
+      "amount": 30000,
+      "roiPercentage": 4.2,
+      "roiInterval": "daily",
+      "status": "active",
+      "activatedAt": "2026-09-12T15:45:34.867Z",
+      "lastRoiAt": "2026-09-16T15:45:34.867Z",
+      "totalEarned": 0,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "inv-bill-1",
+      "userId": "user-bill",
+      "planId": "plan-3",
+      "planName": "Institutional Alpha Desk",
+      "amount": 75000,
+      "roiPercentage": 7.8,
+      "roiInterval": "weekly",
+      "status": "active",
+      "activatedAt": "2026-09-03T15:45:34.867Z",
+      "lastRoiAt": "2026-09-14T15:45:34.867Z",
+      "totalEarned": 0,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    }
+  ],
+  "withdrawals": [
+    {
+      "id": "wd-stone-1",
+      "userId": "user-stonebridge",
+      "amount": 5000,
+      "method": "Crypto (BTC Transfer)",
+      "status": "approved",
+      "details": "Recipient: bc1q9x37k74x28y5y4h03u821slkdjfs739",
+      "txnId": "TXN-9812401",
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif-stone-1",
+      "userId": "user-stonebridge",
+      "title": "Portfolio Optimization Complete",
+      "message": "Your Balanced Growth Matrix plan generated $1,260 in automated yield this week.",
+      "type": "success",
+      "isRead": false,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "notif-stone-2",
+      "userId": "user-stonebridge",
+      "title": "Security Verification Verified",
+      "message": "Your Level 3 KYC documents were verified by compliance desk.",
+      "type": "info",
+      "isRead": false,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "notif-bill-1",
+      "userId": "user-bill",
+      "title": "Corporate Dividend Credit",
+      "message": "Incoming corporate yield of $11,250 has been settled to your treasury account.",
+      "type": "success",
+      "isRead": false,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    }
+  ],
+  "loans": [
+    {
+      "id": "loan-stone-1",
+      "userId": "user-stonebridge",
+      "amount": 25000,
+      "purpose": "Venture Capital Commercial Expansion",
+      "duration": "12 Months",
+      "status": "approved",
+      "interestRate": 4.8,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    }
+  ],
+  "beneficiaries": [
+    {
+      "id": "ben-stone-1",
+      "userId": "user-stonebridge",
+      "name": "Sarah Jenkins",
+      "bankName": "JPMorgan Chase Bank",
+      "accountNumber": "4820199204",
+      "routingNumber": "021000021",
+      "swiftCode": "CHASUS33",
+      "isFavorite": true,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "ben-stone-2",
+      "userId": "user-stonebridge",
+      "name": "Alex Morgan",
+      "bankName": "Wells Fargo Bank, N.A.",
+      "accountNumber": "9182304918",
+      "routingNumber": "121000248",
+      "swiftCode": "WFBIUS6S",
+      "isFavorite": false,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    },
+    {
+      "id": "ben-bill-1",
+      "userId": "user-bill",
+      "name": "Ogden Holdings Escrow LLC",
+      "bankName": "Bank of America, N.A.",
+      "accountNumber": "8891024510",
+      "routingNumber": "026009593",
+      "swiftCode": "BOFAUS3N",
+      "isFavorite": true,
+      "createdAt": "2026-09-17T15:45:34.867Z"
+    }
+  ],
+  "appSettings": {
+    "id": "default",
+    "siteName": "Vestexa",
+    "currency": "USD",
+    "signupBonus": 25,
+    "referralCommission": 5,
+    "referralCommissionLevels": [
+      5,
+      3,
+      2,
+      1,
+      0.5
+    ],
+    "tradeMode": true,
+    "weekendTrading": false,
+    "enableKyc": true,
+    "enableTwoFactor": false,
+    "enableEmailVerification": false,
+    "returnCapital": true,
+    "withdrawalOption": "manual",
+    "commissionFee": 1.5,
+    "modules": {
+      "investments": true,
+      "loans": true,
+      "transfers": true,
+      "cards": true,
+      "swap": true,
+      "referrals": true,
+      "notifications": true,
+      "beneficiaries": true
+    }
+  },
+  "version": 1,
+  "updatedAt": "2026-09-17T15:45:34.867Z"
+}

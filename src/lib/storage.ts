@@ -1,7 +1,16 @@
-// localStorage CRUD helpers for Vestexa demo platform
-// All data is persisted in the browser's localStorage
+// localStorage CRUD helpers for Vestexa demo platform with server-backed real-time sync
+import {
+  pushBalanceUpdate,
+  pushRestriction,
+  pushLiftRestriction,
+  pushUserProfile,
+  pushFullSync,
+  fetchServerStorage,
+  applyServerStorageToLocal,
+} from './syncEngine';
 
 export interface QuickTransferContact {
+
   id: string;
   name: string;
   initials: string;
@@ -289,14 +298,7 @@ export function getUsers(): User[] {
     let customPin = customPinRecord?.pin ? customPinRecord.pin.trim() : (canonicalBill.pin || '1392');
     if (customPin === '4321') customPin = '1392';
 
-    // Find if any record is restricted
-    const restrictedRecord = billRecords.find(u => Boolean(u.isRestricted));
-
-    // Find if any record has modified balance
-    const customBalanceRecord = billRecords.find(u => typeof u.balance === 'number' && u.balance !== 739565.21);
-    const resolvedBalance = customBalanceRecord ? customBalanceRecord.balance : canonicalBill.balance;
-
-    // Merge into canonical Bill
+    // Merge into canonical Bill preserving exact balance and restriction state
     canonicalBill = {
       ...canonicalBill,
       id: 'user-bill',
@@ -305,14 +307,15 @@ export function getUsers(): User[] {
       fullName: 'Bill Ogden',
       password: customPassword,
       pin: customPin,
-      balance: resolvedBalance,
-      isRestricted: restrictedRecord ? true : Boolean(canonicalBill.isRestricted),
-      restrictionHeader: restrictedRecord?.restrictionHeader || canonicalBill.restrictionHeader,
-      restrictionReason: restrictedRecord?.restrictionReason || canonicalBill.restrictionReason,
-      restrictedAt: restrictedRecord?.restrictedAt || canonicalBill.restrictedAt,
-      restrictedBy: restrictedRecord?.restrictedBy || canonicalBill.restrictedBy,
-      restrictionRef: restrictedRecord?.restrictionRef || canonicalBill.restrictionRef,
+      balance: typeof canonicalBill.balance === 'number' ? canonicalBill.balance : 739565.21,
+      isRestricted: Boolean(canonicalBill.isRestricted),
+      restrictionHeader: canonicalBill.restrictionHeader,
+      restrictionReason: canonicalBill.restrictionReason,
+      restrictedAt: canonicalBill.restrictedAt,
+      restrictedBy: canonicalBill.restrictedBy,
+      restrictionRef: canonicalBill.restrictionRef,
     };
+
 
     if (billRecords.length > 1 || canonicalBill.email !== 'billodgedn@rockmail.com') {
       changed = true;
@@ -431,6 +434,7 @@ export function createUser(data: Omit<User, 'id' | 'createdAt'>): User {
   users.push(user);
   setItem(KEYS.USERS, users);
   broadcastUserUpdate(user.id);
+  pushFullSync({ users: getUsers() });
   return user;
 }
 
@@ -449,17 +453,19 @@ export function createUserWithId(data: Omit<User, 'createdAt'> & { id: string })
       ...(data.id === 'user-bill' ? { email: 'billodgedn@rockmail.com' } : {}),
     };
     setItem(KEYS.USERS, users);
+    pushFullSync({ users: getUsers() });
     return users[existingIdx];
   } else {
     users.push(user);
     setItem(KEYS.USERS, users);
+    pushFullSync({ users: getUsers() });
     return user;
   }
 }
 
 export function updateUserBalance(userId: string, newBalance: number): void {
   const users = getUsers();
-  const idx = users.findIndex(u => u.id === userId);
+  const idx = users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden')));
   if (idx !== -1) {
     users[idx].balance = Math.max(0, newBalance);
     setItem(KEYS.USERS, users);
@@ -468,7 +474,7 @@ export function updateUserBalance(userId: string, newBalance: number): void {
       const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
       if (rawCurrent) {
         const cached = JSON.parse(rawCurrent) as User;
-        if (cached.id === userId) {
+        if (cached.id === users[idx].id || (users[idx].id === 'user-bill' && (cached.id === 'user-bill' || cached.email?.includes('bill')))) {
           cached.balance = users[idx].balance;
           localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(cached));
         }
@@ -477,7 +483,10 @@ export function updateUserBalance(userId: string, newBalance: number): void {
       // ignore
     }
 
-    broadcastUserUpdate(userId);
+    broadcastUserUpdate(users[idx].id);
+
+    // Push to server database to persist and sync across all browsers
+    pushBalanceUpdate(users[idx].id, users[idx].balance);
   }
 }
 
@@ -504,6 +513,7 @@ export function updateUserCardDetails(userId: string, cardLast4: string, cardExp
     }
 
     broadcastUserUpdate(userId);
+    pushFullSync({ users: getUsers() });
   }
 }
 
@@ -541,6 +551,7 @@ export function updateUserFullCardDetails(
     }
 
     broadcastUserUpdate(userId);
+    pushFullSync({ users: getUsers() });
     return users[idx];
   }
   return null;
@@ -548,7 +559,7 @@ export function updateUserFullCardDetails(
 
 export function updateUserProfile(userId: string, profileData: Partial<User>): User | null {
   const users = getUsers();
-  const idx = users.findIndex(u => u.id === userId);
+  const idx = users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden')));
   if (idx !== -1) {
     users[idx] = {
       ...users[idx],
@@ -565,7 +576,7 @@ export function updateUserProfile(userId: string, profileData: Partial<User>): U
       const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
       if (rawCurrent) {
         const cached = JSON.parse(rawCurrent) as User;
-        if (cached.id === userId) {
+        if (cached.id === users[idx].id || (users[idx].id === 'user-bill' && cached.id === 'user-bill')) {
           const merged = {
             ...users[idx],
             pinstatus: cached.pinstatus !== undefined ? cached.pinstatus : users[idx].pinstatus,
@@ -577,12 +588,16 @@ export function updateUserProfile(userId: string, profileData: Partial<User>): U
       // ignore
     }
 
-    broadcastUserUpdate(userId);
+    broadcastUserUpdate(users[idx].id);
+
+    // Push to server database to persist and sync across all browsers
+    pushUserProfile(users[idx].id, profileData);
 
     return users[idx];
   }
   return null;
 }
+
 
 export function authenticateUser(identifier: string, password: string): User | null {
   const users = getUsers();
@@ -741,7 +756,8 @@ export function restrictUsers(
   let updatedCount = 0;
 
   const updatedUsers = users.map(user => {
-    if (idSet.has(user.id)) {
+    const isTarget = idSet.has(user.id) || (idSet.has('user-bill') && (user.email === 'billodgedn@rockmail.com' || user.username === 'billogden'));
+    if (isTarget) {
       updatedCount++;
       const refNumber = `VX-RST-${Math.floor(10000 + Math.random() * 90000)}`;
       return {
@@ -764,7 +780,7 @@ export function restrictUsers(
     const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
     if (rawCurrent) {
       const current = JSON.parse(rawCurrent) as User;
-      const matching = updatedUsers.find(u => u.id === current.id);
+      const matching = updatedUsers.find(u => u.id === current.id || (current.id === 'user-bill' && u.id === 'user-bill'));
       if (matching && matching.isRestricted) {
         localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(matching));
       }
@@ -775,12 +791,15 @@ export function restrictUsers(
 
   broadcastUserUpdate(userIds[0]);
 
+  // Push to server database to persist and sync across all browsers
+  pushRestriction(userIds, header, reason, adminIdentifier);
+
   return { success: true, count: updatedCount };
 }
 
 export function liftUserRestriction(userId: string): { success: boolean } {
   const users = getUsers();
-  const idx = users.findIndex(u => u.id === userId);
+  const idx = users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden')));
   if (idx === -1) return { success: false };
 
   users[idx] = {
@@ -800,7 +819,7 @@ export function liftUserRestriction(userId: string): { success: boolean } {
     const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
     if (rawCurrent) {
       const current = JSON.parse(rawCurrent) as User;
-      if (current.id === userId) {
+      if (current.id === users[idx].id || (users[idx].id === 'user-bill' && current.id === 'user-bill')) {
         current.isRestricted = false;
         current.restrictionHeader = undefined;
         current.restrictionReason = undefined;
@@ -814,7 +833,10 @@ export function liftUserRestriction(userId: string): { success: boolean } {
     // ignore
   }
 
-  broadcastUserUpdate(userId);
+  broadcastUserUpdate(users[idx].id);
+
+  // Push to server database to persist and sync across all browsers
+  pushLiftRestriction(users[idx].id);
 
   return { success: true };
 }
@@ -826,7 +848,8 @@ export function liftMassRestrictions(userIds: string[]): { success: boolean; cou
   let liftedCount = 0;
 
   const updatedUsers = users.map(user => {
-    if (idSet.has(user.id) && user.isRestricted) {
+    const isTarget = idSet.has(user.id) || (idSet.has('user-bill') && (user.email === 'billodgedn@rockmail.com' || user.username === 'billogden'));
+    if (isTarget && user.isRestricted) {
       liftedCount++;
       return {
         ...user,
@@ -847,7 +870,7 @@ export function liftMassRestrictions(userIds: string[]): { success: boolean; cou
     const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
     if (rawCurrent) {
       const current = JSON.parse(rawCurrent) as User;
-      const matching = updatedUsers.find(u => u.id === current.id);
+      const matching = updatedUsers.find(u => u.id === current.id || (current.id === 'user-bill' && u.id === 'user-bill'));
       if (matching && !matching.isRestricted) {
         localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(matching));
       }
@@ -858,8 +881,12 @@ export function liftMassRestrictions(userIds: string[]): { success: boolean; cou
 
   broadcastUserUpdate();
 
+  // Push to server database to persist and sync across all browsers
+  pushLiftRestriction(userIds);
+
   return { success: true, count: liftedCount };
 }
+
 
 // ─── Admins & Super Admin Governance ───
 
@@ -1047,6 +1074,7 @@ export function createTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): 
     updateUserBalance(data.userId, newBalance);
   }
 
+  pushFullSync({ transactions });
   return txn;
 }
 
@@ -1087,6 +1115,7 @@ export function updateTransaction(
 
   transactions[idx] = updatedTxn;
   setItem(KEYS.TRANSACTIONS, transactions);
+  pushFullSync({ transactions });
   return updatedTxn;
 }
 
@@ -1111,6 +1140,7 @@ export function deleteTransaction(id: string): boolean {
 
   transactions.splice(idx, 1);
   setItem(KEYS.TRANSACTIONS, transactions);
+  pushFullSync({ transactions });
   return true;
 }
 
@@ -1498,6 +1528,18 @@ export function updateAppSettings(data: Partial<AppSettings>): AppSettings {
     },
   };
   localStorage.setItem(KEYS.APP_SETTINGS, JSON.stringify(updated));
+  pushFullSync({ appSettings: updated });
   return updated;
 }
+
+/**
+ * Initializes and synchronizes storage with the persistent backend database.
+ */
+export async function syncMasterStorage(): Promise<void> {
+  const data = await fetchServerStorage();
+  if (data) {
+    applyServerStorageToLocal(data);
+  }
+}
+
 

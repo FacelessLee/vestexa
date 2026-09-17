@@ -27,12 +27,19 @@ import {
 } from './storage';
 
 export function seedDemoData(): void {
+  // If users already exist (e.g. from server database sync), preserve them and do not overwrite
+  const existingUsers = getUsers();
+  if (existingUsers && existingUsers.length > 0) {
+    markSeeded();
+  }
+
   // Always ensure base plans exist even if users were already seeded
   seedInvestmentPlansIfEmpty();
   seedSettingsIfEmpty();
   repairLegacyDemoPins();
 
   if (isSeeded()) return;
+
 
   // Preserve any existing transactions in localStorage so admin inputs are never lost
   const existingTxns = getTransactions();
