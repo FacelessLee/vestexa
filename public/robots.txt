@@ -1,0 +1,10 @@
+# Vestexa public crawler policy
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /signup
+Disallow: /pin
+Disallow: /dashboard
+Disallow: /admin
+
+Sitemap: https://vestexa.org/sitemap.xml

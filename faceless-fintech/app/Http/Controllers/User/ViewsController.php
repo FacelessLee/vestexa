@@ -530,9 +530,13 @@ public function loan()
     public function pinstatus(Request $request)
 {
     $user = Auth::user();
-    
-    // Validate PIN
-    if($request->pin != $user->pin){
+
+    $validated = $request->validate([
+        'pin' => ['required', 'string', 'size:4', 'regex:/^\d{4}$/'],
+    ]);
+
+    // Compare PINs as strings so leading zeroes are preserved.
+    if (!hash_equals((string) $user->pin, $validated['pin'])) {
         return response()->json([
             'success' => false,
             'message' => 'Invalid PIN. Please try again.'

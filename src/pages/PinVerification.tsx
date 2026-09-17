@@ -34,6 +34,8 @@ export const PinVerification: React.FC = () => {
 
   // Handle PIN submission
   const handleSubmitPin = async (pinToSubmit = pin) => {
+    if (isProcessing) return;
+
     if (pinToSubmit.length < maxLength) {
       setErrorMessage('Please enter all 4 digits');
       setTimeout(() => setErrorMessage(''), 3000);

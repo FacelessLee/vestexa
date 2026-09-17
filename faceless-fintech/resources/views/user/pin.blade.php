@@ -42,6 +42,10 @@
     },
     
     async submitPin() {
+        if (this.isProcessing) {
+            return;
+        }
+
         if (this.pin.length < this.maxLength) {
             this.errorMessage = 'Please enter all 4 digits';
             setTimeout(() => this.errorMessage = '', 3000);

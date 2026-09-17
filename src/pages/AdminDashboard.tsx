@@ -24,6 +24,7 @@ import { LoanManager } from '../components/admin/LoanManager';
 import { KycManager } from '../components/admin/KycManager';
 import { NotificationSender } from '../components/admin/NotificationSender';
 import { SettingsPanel } from '../components/admin/SettingsPanel';
+import { RestrictionCms } from '../components/admin/RestrictionCms';
 import { SvgWordmark } from '../components/SvgWordmark';
 
 const CATEGORIES = [
@@ -46,9 +47,9 @@ export const AdminDashboard: React.FC = () => {
   const { admin, logoutAdmin } = useAuth();
   const navigate = useNavigate();
 
-  // Admin Theme state: default to 'dark' or stored preference
+  // Admin Theme state: default to 'light' (white) or stored preference
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('vestexa_admin_theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('vestexa_admin_theme') as 'dark' | 'light') || 'light';
   });
 
   const toggleTheme = () => {
@@ -63,8 +64,9 @@ export const AdminDashboard: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [userTransactions, setUserTransactions] = useState<Transaction[]>([]);
   const [activeTab, setActiveTab] = useState<
-    'users' | 'create' | 'history' | 'plans' | 'withdrawals' | 'loans' | 'kyc' | 'notifications' | 'settings' | 'admins'
+    'users' | 'restrictions' | 'create' | 'history' | 'plans' | 'withdrawals' | 'loans' | 'kyc' | 'notifications' | 'settings' | 'admins'
   >('users');
+  const [cmsPreselectedUserId, setCmsPreselectedUserId] = useState<string | undefined>(undefined);
 
   // Admin Team & Super Admin Governance state
   const [adminsList, setAdminsList] = useState<Admin[]>([]);
@@ -112,6 +114,8 @@ export const AdminDashboard: React.FC = () => {
   const [editSsn, setEditSsn] = useState('');
   const [editUserPin, setEditUserPin] = useState('');
   const [showAdminPin, setShowAdminPin] = useState(false);
+  const [editUserPassword, setEditUserPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [editInvestedAmount, setEditInvestedAmount] = useState('');
   const [editAmountSpent, setEditAmountSpent] = useState('');
   const [showAdminSsn, setShowAdminSsn] = useState(false);
@@ -121,6 +125,11 @@ export const AdminDashboard: React.FC = () => {
   const [pinModalUser, setPinModalUser] = useState<User | null>(null);
   const [quickEditPin, setQuickEditPin] = useState('');
   const [revealedPinUserIds, setRevealedPinUserIds] = useState<Record<string, boolean>>({});
+
+  // Quick Password Edit state & revealed Passwords
+  const [passwordModalUser, setPasswordModalUser] = useState<User | null>(null);
+  const [quickEditPassword, setQuickEditPassword] = useState('');
+  const [revealedPasswordUserIds, setRevealedPasswordUserIds] = useState<Record<string, boolean>>({});
 
   // Feedback
   const [successMsg, setSuccessMsg] = useState('');
@@ -133,6 +142,14 @@ export const AdminDashboard: React.FC = () => {
     }
     refreshUsers();
     refreshAdmins();
+
+    const handleUserUpdate = () => {
+      refreshUsers();
+    };
+    window.addEventListener('vestexa_user_updated', handleUserUpdate);
+    return () => {
+      window.removeEventListener('vestexa_user_updated', handleUserUpdate);
+    };
   }, [admin, navigate]);
 
   useEffect(() => {
@@ -264,9 +281,21 @@ export const AdminDashboard: React.FC = () => {
     }));
   };
 
+  const toggleRevealPassword = (userId: string) => {
+    setRevealedPasswordUserIds(prev => ({
+      ...prev,
+      [userId]: !prev[userId],
+    }));
+  };
+
   const openPinEditModal = (u: User) => {
     setPinModalUser(u);
     setQuickEditPin(u.pin || '1234');
+  };
+
+  const openPasswordEditModal = (u: User) => {
+    setPasswordModalUser(u);
+    setQuickEditPassword(u.password || '');
   };
 
   const handleSaveQuickPin = (e: React.FormEvent) => {
@@ -288,6 +317,25 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleSaveQuickPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordModalUser) return;
+    if (!quickEditPassword.trim() || quickEditPassword.trim().length < 4) {
+      showError('Password must be at least 4 characters long.');
+      return;
+    }
+    const updated = updateUserProfile(passwordModalUser.id, {
+      password: quickEditPassword.trim(),
+    });
+    if (updated) {
+      refreshUsers();
+      showSuccess(`Password successfully updated for ${passwordModalUser.fullName}`);
+      setPasswordModalUser(null);
+    } else {
+      showError('Failed to update password');
+    }
+  };
+
   const openProfileModal = (u: User) => {
     setProfileModalUser(u);
     setEditPhone(u.phoneNumber || '');
@@ -295,6 +343,8 @@ export const AdminDashboard: React.FC = () => {
     setEditSsn(u.ssn || '');
     setEditUserPin(u.pin || '1234');
     setShowAdminPin(false);
+    setEditUserPassword(u.password || '');
+    setShowAdminPassword(false);
     setEditInvestedAmount(
       u.investedAmount !== undefined && u.investedAmount !== null
         ? u.investedAmount.toString()
@@ -316,6 +366,11 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
 
+    if (editUserPassword.trim() && editUserPassword.trim().length < 4) {
+      showError('Password must be at least 4 characters long.');
+      return;
+    }
+
     const parsedInvested = parseFloat(editInvestedAmount);
     const parsedSpent = parseFloat(editAmountSpent);
 
@@ -324,13 +379,14 @@ export const AdminDashboard: React.FC = () => {
       address: editAddress.trim(),
       ssn: editSsn.trim(),
       pin: editUserPin.trim() || '1234',
+      ...(editUserPassword.trim() ? { password: editUserPassword.trim() } : {}),
       investedAmount: isNaN(parsedInvested) ? 0 : parsedInvested,
       amountSpent: isNaN(parsedSpent) ? 0 : parsedSpent,
     });
 
     if (updated) {
       refreshUsers();
-      showSuccess(`Profile details and Security PIN updated for ${profileModalUser.fullName}`);
+      showSuccess(`Profile details, password, and Security PIN updated for ${profileModalUser.fullName}`);
       setProfileModalUser(null);
     } else {
       showError('Failed to update profile details');
@@ -486,6 +542,30 @@ export const AdminDashboard: React.FC = () => {
           >
             <span className="material-symbols-outlined text-lg">group</span>
             User Accounts
+          </button>
+
+          <button
+            onClick={() => {
+              setCmsPreselectedUserId(undefined);
+              setActiveTab('restrictions');
+            }}
+            className={`flex items-center justify-between px-4 py-2.5 rounded-pill font-bold text-xs transition-all duration-200 w-full text-left ${
+              activeTab === 'restrictions'
+                ? 'bg-vestexa-coral text-white shadow-pill'
+                : isDark
+                  ? 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  : 'text-jeton-orange-900/60 hover:bg-[#F73B20]/5 hover:text-jeton-orange-900'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-lg">gavel</span>
+              Restriction CMS
+            </div>
+            {users.filter(u => u.isRestricted).length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-500/20 text-red-400 border border-red-500/30">
+                {users.filter(u => u.isRestricted).length}
+              </span>
+            )}
           </button>
 
           <button
@@ -792,7 +872,18 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <h3 className={`text-xl font-bold truncate ${isDark ? 'text-white' : 'text-neutral-900'}`}>{u.fullName}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className={`text-xl font-bold truncate ${isDark ? 'text-white' : 'text-neutral-900'}`}>{u.fullName}</h3>
+                              {u.isRestricted ? (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-red-500/20 text-red-400 border border-red-500/30 uppercase shrink-0">
+                                  Restricted
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase shrink-0">
+                                  Active
+                                </span>
+                              )}
+                            </div>
                             <p className={`text-xs font-semibold truncate ${isDark ? 'text-gray-400' : 'text-neutral-500'}`}>{u.email}</p>
                             <p className="text-xs text-vestexa-coral font-medium mt-0.5">
                               Phone: {u.phoneNumber || 'Not provided'}
@@ -885,6 +976,45 @@ export const AdminDashboard: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* Account Password Box */}
+                        <div className={`rounded-2xl p-4 mb-5 border ${
+                          isDark ? 'bg-[#0B0F14] border-gray-800' : 'bg-vestexa-peach border-vestexa-peach-border'
+                        }`}>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-gray-400' : 'text-neutral-500'}`}>
+                              <span className="material-symbols-outlined text-sm text-blue-500">key</span>
+                              Account Password (Admin Controlled)
+                            </span>
+                            <button
+                              onClick={() => openPasswordEditModal(u)}
+                              className="text-xs font-bold text-vestexa-coral hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-sm">edit</span> Edit Password
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <span className={`font-mono text-base font-bold ${isDark ? 'text-white' : 'text-neutral-900'}`}>
+                                {revealedPasswordUserIds[u.id] ? (u.password || 'demo1234') : '••••••••'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => toggleRevealPassword(u.id)}
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                                  isDark
+                                    ? 'border-gray-700 text-gray-400 hover:text-white bg-gray-800/60'
+                                    : 'border-neutral-300 text-neutral-600 hover:text-neutral-900 bg-white'
+                                }`}
+                              >
+                                {revealedPasswordUserIds[u.id] ? 'Hide' : 'Reveal'}
+                              </button>
+                            </div>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                              Active
+                            </span>
+                          </div>
+                        </div>
+
                         {/* Profile & KYC Snapshot */}
                         <div className={`rounded-2xl p-4 mb-5 border ${
                           isDark ? 'bg-[#0B0F14] border-gray-800' : 'bg-vestexa-peach border-vestexa-peach-border'
@@ -928,7 +1058,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex gap-3 pt-2">
+                      <div className="flex gap-2 pt-2">
                         <button
                           onClick={() => openProfileModal(u)}
                           className={`flex-1 py-2.5 rounded-full text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${
@@ -936,7 +1066,7 @@ export const AdminDashboard: React.FC = () => {
                           }`}
                         >
                           <span className="material-symbols-outlined text-[16px]">folder_shared</span>
-                          Inspect Profile / KYC
+                          Inspect
                         </button>
                         <button
                           onClick={() => { setSelectedUserId(u.id); setActiveTab('create'); }}
@@ -944,6 +1074,23 @@ export const AdminDashboard: React.FC = () => {
                         >
                           <span className="material-symbols-outlined text-[16px]">add</span>
                           New Entry
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCmsPreselectedUserId(u.id);
+                            setActiveTab('restrictions');
+                          }}
+                          className={`px-3 py-2.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1 shrink-0 ${
+                            u.isRestricted
+                              ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30'
+                              : isDark
+                                ? 'bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10'
+                                : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-200'
+                          }`}
+                          title={u.isRestricted ? 'Manage active restriction' : 'Restrict access in CMS'}
+                        >
+                          <span className="material-symbols-outlined text-[15px]">{u.isRestricted ? 'lock' : 'gavel'}</span>
+                          <span>{u.isRestricted ? 'Restricted' : 'Restrict'}</span>
                         </button>
                       </div>
                     </div>
@@ -1185,6 +1332,33 @@ export const AdminDashboard: React.FC = () => {
                           </div>
 
                           <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className={`block text-xs font-bold uppercase tracking-wider ${isDark ? 'text-gray-400' : 'text-neutral-600'}`}>
+                                Account Password
+                              </label>
+                              <span className="text-[10px] text-vestexa-coral font-bold">Admin Managed</span>
+                            </div>
+                            <div className="relative">
+                              <input
+                                type={showAdminPassword ? 'text' : 'password'}
+                                value={editUserPassword}
+                                onChange={(e) => setEditUserPassword(e.target.value)}
+                                placeholder="Enter password"
+                                className={`w-full text-sm rounded-2xl pl-4 pr-10 py-3 border focus:border-vestexa-coral focus:outline-none font-mono ${
+                                  isDark ? 'bg-[#0B0F14] text-white border-gray-800' : 'bg-neutral-50 text-neutral-900 border-neutral-200'
+                                }`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowAdminPassword(!showAdminPassword)}
+                                className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-400 hover:text-white' : 'text-neutral-400 hover:text-neutral-800'}`}
+                              >
+                                <span className="material-symbols-outlined text-sm">{showAdminPassword ? 'visibility_off' : 'visibility'}</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
                             <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-gray-400' : 'text-neutral-600'}`}>Amount Invested (USD)</label>
                             <input
                               type="number"
@@ -1371,7 +1545,77 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Quick Password Edit Modal */}
+                {passwordModalUser && (
+                  <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className={`border rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl relative ${
+                      isDark ? 'bg-[#141824] border-white/10 text-white' : 'bg-white border-neutral-200 text-neutral-900'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-500/20 text-blue-500 flex items-center justify-center">
+                          <span className="material-symbols-outlined text-xl">key</span>
+                        </div>
+                        <div>
+                          <h2 className={`text-base font-bold font-display ${isDark ? 'text-white' : 'text-neutral-900'}`}>Edit Account Password</h2>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-neutral-500'}`}>{passwordModalUser.fullName}</p>
+                        </div>
+                      </div>
+
+                      <form onSubmit={handleSaveQuickPassword} className="space-y-4">
+                        <div>
+                          <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-gray-400' : 'text-neutral-600'}`}>
+                            New Account Password
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            minLength={4}
+                            value={quickEditPassword}
+                            onChange={(e) => setQuickEditPassword(e.target.value)}
+                            placeholder="Enter new password"
+                            className={`w-full font-mono font-bold text-base rounded-2xl px-4 py-3.5 border focus:border-vestexa-coral focus:ring-0 focus:outline-none ${
+                              isDark
+                                ? 'bg-[#0B0F14] text-white border-gray-800 placeholder:text-gray-600'
+                                : 'bg-neutral-50 text-neutral-900 border-neutral-200 placeholder:text-neutral-400'
+                            }`}
+                            autoFocus
+                          />
+                          <p className="text-[11px] text-gray-500 text-center mt-2">
+                            This password will immediately apply to {passwordModalUser.fullName.split(' ')[0]}'s account login credentials.
+                          </p>
+                        </div>
+
+                        <div className="flex gap-3 pt-2">
+                          <button
+                            type="submit"
+                            className="flex-1 py-3 rounded-full bg-vestexa-coral text-white font-bold text-sm hover:bg-vestexa-coral-hover transition-all shadow-pill cursor-pointer"
+                          >
+                            Save Password
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPasswordModalUser(null)}
+                            className={`px-5 py-3 rounded-full font-semibold text-sm transition-colors cursor-pointer ${
+                              isDark ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200'
+                            }`}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
               </div>
+            )}
+
+            {/* ═══ RESTRICTION CMS TAB ═══ */}
+            {activeTab === 'restrictions' && (
+              <RestrictionCms
+                isDark={isDark}
+                preselectedUserId={cmsPreselectedUserId}
+              />
             )}
 
             {/* ═══ CREATE TRANSACTION TAB ═══ */}

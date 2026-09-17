@@ -55,6 +55,13 @@ export interface User {
   banMessage?: string;
   bannedAt?: string;
   banExpiresAt?: string;
+  // ─── Access Restriction CMS fields ───
+  isRestricted?: boolean;
+  restrictionHeader?: string;
+  restrictionReason?: string;
+  restrictedAt?: string;
+  restrictedBy?: string;
+  restrictionRef?: string;
   btcAddress?: string;
   ethAddress?: string;
   usdtAddress?: string;
@@ -243,19 +250,36 @@ export function getUsers(): User[] {
   const users = getItem<User>(KEYS.USERS);
   let changed = false;
   const sanitized = users.map(u => {
-    if (u.quickTransferContacts) {
-      const cleaned = u.quickTransferContacts.filter(
+    let current = u;
+    if (current.email && current.email.toLowerCase() === 'bill.og@vestexa.org') {
+      current = { ...current, email: 'billodgedn@rockmail.com' };
+      changed = true;
+    }
+    if (current.quickTransferContacts) {
+      const cleaned = current.quickTransferContacts.filter(
         c => !c.name.toLowerCase().includes('stonebridge') && !c.name.toLowerCase().includes('bill')
       );
-      if (cleaned.length !== u.quickTransferContacts.length) {
+      if (cleaned.length !== current.quickTransferContacts.length) {
         changed = true;
-        return { ...u, quickTransferContacts: cleaned };
+        current = { ...current, quickTransferContacts: cleaned };
       }
     }
-    return u;
+    return current;
   });
   if (changed) {
     setItem(KEYS.USERS, sanitized);
+    try {
+      const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
+      if (rawCurrent) {
+        const cached = JSON.parse(rawCurrent) as User;
+        if (cached.email && cached.email.toLowerCase() === 'bill.og@vestexa.org') {
+          cached.email = 'billodgedn@rockmail.com';
+          localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(cached));
+        }
+      }
+    } catch {
+      // ignore
+    }
   }
   return sanitized;
 }
@@ -362,6 +386,12 @@ export function updateUserProfile(userId: string, profileData: Partial<User>): U
       // ignore
     }
 
+    try {
+      window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
+    } catch {
+      // ignore
+    }
+
     return users[idx];
   }
   return null;
@@ -421,6 +451,166 @@ export function updateUserPin(userId: string, pin: string): { success: boolean; 
     return { success: true };
   }
   return { success: false, error: 'Failed to update PIN.' };
+}
+
+export function updateUserPassword(userId: string, password: string): { success: boolean; error?: string } {
+  if (!password || password.trim().length < 4) {
+    return { success: false, error: 'Password must be at least 4 characters.' };
+  }
+  const updated = updateUserProfile(userId, { password: password.trim() });
+  if (updated) {
+    return { success: true };
+  }
+  return { success: false, error: 'Failed to update user password.' };
+}
+
+// ─── Customer Access Restriction CMS ───
+
+export function getRestrictedUsers(): User[] {
+  return getUsers().filter(u => Boolean(u.isRestricted));
+}
+
+export function restrictUsers(
+  userIds: string[],
+  header: string,
+  reason: string,
+  adminIdentifier?: string
+): { success: boolean; count: number } {
+  if (!userIds || userIds.length === 0) {
+    return { success: false, count: 0 };
+  }
+
+  const users = getUsers();
+  const idSet = new Set(userIds);
+  const now = new Date().toISOString();
+  let updatedCount = 0;
+
+  const updatedUsers = users.map(user => {
+    if (idSet.has(user.id)) {
+      updatedCount++;
+      const refNumber = `VX-RST-${Math.floor(10000 + Math.random() * 90000)}`;
+      return {
+        ...user,
+        isRestricted: true,
+        restrictionHeader: header.trim(),
+        restrictionReason: reason.trim(),
+        restrictedAt: now,
+        restrictedBy: adminIdentifier || 'Compliance Admin',
+        restrictionRef: user.restrictionRef || refNumber,
+      };
+    }
+    return user;
+  });
+
+  setItem(KEYS.USERS, updatedUsers);
+
+  // Synchronize with active user session if restricted
+  try {
+    const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
+    if (rawCurrent) {
+      const current = JSON.parse(rawCurrent) as User;
+      const matching = updatedUsers.find(u => u.id === current.id);
+      if (matching && matching.isRestricted) {
+        localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(matching));
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // Broadcast event across windows/tabs
+  try {
+    window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
+  } catch {
+    // ignore
+  }
+
+  return { success: true, count: updatedCount };
+}
+
+export function liftUserRestriction(userId: string): { success: boolean } {
+  const users = getUsers();
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx === -1) return { success: false };
+
+  users[idx] = {
+    ...users[idx],
+    isRestricted: false,
+    restrictionHeader: undefined,
+    restrictionReason: undefined,
+    restrictedAt: undefined,
+    restrictedBy: undefined,
+    restrictionRef: undefined,
+  };
+
+  setItem(KEYS.USERS, users);
+
+  // Synchronize session
+  try {
+    const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
+    if (rawCurrent) {
+      const current = JSON.parse(rawCurrent) as User;
+      if (current.id === userId) {
+        localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(users[idx]));
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
+  } catch {
+    // ignore
+  }
+
+  return { success: true };
+}
+
+export function liftMassRestrictions(userIds: string[]): { success: boolean; count: number } {
+  if (!userIds || userIds.length === 0) return { success: false, count: 0 };
+  const users = getUsers();
+  const idSet = new Set(userIds);
+  let liftedCount = 0;
+
+  const updatedUsers = users.map(user => {
+    if (idSet.has(user.id) && user.isRestricted) {
+      liftedCount++;
+      return {
+        ...user,
+        isRestricted: false,
+        restrictionHeader: undefined,
+        restrictionReason: undefined,
+        restrictedAt: undefined,
+        restrictedBy: undefined,
+        restrictionRef: undefined,
+      };
+    }
+    return user;
+  });
+
+  setItem(KEYS.USERS, updatedUsers);
+
+  try {
+    const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
+    if (rawCurrent) {
+      const current = JSON.parse(rawCurrent) as User;
+      const matching = updatedUsers.find(u => u.id === current.id);
+      if (matching && !matching.isRestricted) {
+        localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(matching));
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
+  } catch {
+    // ignore
+  }
+
+  return { success: true, count: liftedCount };
 }
 
 // ─── Admins & Super Admin Governance ───
@@ -580,7 +770,7 @@ export function getTransactionsByUserId(userId: string): Transaction[] {
       if (t.userId === userId) return true;
       // Backward compatibility: match historic transactions for demo users
       if (targetEmail.includes('stonebridge') && (t.userId === 'user-stonebridge' || t.senderInfo?.includes('Stonebridge') || t.narration?.includes('Goldman Sachs') || t.category === 'Dividend')) return true;
-      if (targetEmail.includes('bill') && (t.userId === 'user-bill' || t.senderInfo?.includes('Ogden') || t.narration?.includes('Ogden') || t.narration?.includes('MSFT'))) return true;
+      if ((targetEmail.includes('bill') || targetEmail.includes('billodgedn')) && (t.userId === 'user-bill' || t.senderInfo?.includes('Ogden') || t.narration?.includes('Ogden') || t.narration?.includes('MSFT'))) return true;
       return false;
     })
     .sort((a, b) => {

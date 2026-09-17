@@ -19,12 +19,16 @@ import {
   createWithdrawal,
   getAppSettings,
   updateAppSettings,
+  getUserById,
+  updateUserPin,
+  updateUserProfile,
 } from './storage';
 
 export function seedDemoData(): void {
   // Always ensure base plans exist even if users were already seeded
   seedInvestmentPlansIfEmpty();
   seedSettingsIfEmpty();
+  repairLegacyDemoPins();
 
   if (isSeeded()) return;
 
@@ -73,7 +77,7 @@ export function seedDemoData(): void {
 
   const bill = createUserWithId({
     id: 'user-bill',
-    email: 'bill.og@vestexa.org',
+    email: 'billodgedn@rockmail.com',
     password: 'demo1234',
     fullName: 'Bill Ogden',
     username: 'billogden',
@@ -281,6 +285,34 @@ export function seedDemoData(): void {
   seedWithdrawalsIfEmpty();
 
   markSeeded();
+}
+
+function repairLegacyDemoPins(): void {
+  const bill = getUserById('user-bill');
+  if (bill) {
+    // Only assign default PIN if missing, preserving any custom PIN set by admin or user
+    if (!bill.pin) {
+      updateUserPin(bill.id, '4321');
+    }
+    if (bill.email && bill.email.toLowerCase() === 'bill.og@vestexa.org') {
+      updateUserProfile(bill.id, { email: 'billodgedn@rockmail.com' });
+    }
+  }
+
+  // Ensure active user session reflects the updated email if cached under legacy email
+  try {
+    const rawCurrent = localStorage.getItem('vestexa_current_user');
+    if (rawCurrent) {
+      const current = JSON.parse(rawCurrent);
+      if (current.email && current.email.toLowerCase() === 'bill.og@vestexa.org') {
+        current.email = 'billodgedn@rockmail.com';
+        localStorage.setItem('vestexa_current_user', JSON.stringify(current));
+        window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
+      }
+    }
+  } catch {
+    // ignore
+  }
 }
 
 export function seedInvestmentPlansIfEmpty(): void {

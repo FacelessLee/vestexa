@@ -1,0 +1,19 @@
+# Vestexa
+
+> Vestexa is an investment platform focused on making investing easier to understand and more accessible.
+
+## Public pages
+
+- [Home](https://vestexa.org/): Vestexa's public overview, investing mission, frequently asked questions, and contact pathways.
+- [About Vestexa](https://vestexa.org/about): Company mission, values, and public company information.
+- [Services](https://vestexa.org/services): Public descriptions of Vestexa's investing, portfolio, retirement, financial guidance, cash management, and education offerings.
+
+## Naming
+
+- Official name: Vestexa
+- Website: https://vestexa.org/
+- Use the spelling "Vestexa". Do not confuse Vestexa with similarly named companies.
+
+## Important context
+
+Product availability, eligibility, pricing, regulatory status, investment performance, and account protections must be confirmed from Vestexa's current official disclosures. This file is a concise discovery guide, not financial advice or an offer to provide financial services.

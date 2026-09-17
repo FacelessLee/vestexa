@@ -12,6 +12,7 @@ import { LoansSection } from '../components/dashboard/LoansSection';
 import { BeneficiariesSection } from '../components/dashboard/BeneficiariesSection';
 import { NotificationsSection } from '../components/dashboard/NotificationsSection';
 import { ReferralsSection } from '../components/dashboard/ReferralsSection';
+import { RestrictionModal } from '../components/dashboard/RestrictionModal';
 
 export const UserDashboard: React.FC = () => {
   const { user, logoutUser, refreshUser } = useAuth();
@@ -21,9 +22,9 @@ export const UserDashboard: React.FC = () => {
   const [activeNav, setActiveNav] = useState('Dashboard');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Theme state: default to 'dark' or stored preference
+  // Theme state: default to 'light' or stored preference
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('vestexa_theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('vestexa_theme') as 'dark' | 'light') || 'light';
   });
 
   // Profile editing state
@@ -106,6 +107,22 @@ export const UserDashboard: React.FC = () => {
       setTransactions(getTransactionsByUserId(user.id));
     }, 3000);
     return () => clearInterval(interval);
+  }, [user, refreshUser]);
+
+  // Real-time synchronization for administrative updates & restrictions
+  useEffect(() => {
+    const handleSync = () => {
+      refreshUser();
+      if (user) {
+        setTransactions(getTransactionsByUserId(user.id));
+      }
+    };
+    window.addEventListener('vestexa_user_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('vestexa_user_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, [user, refreshUser]);
 
   if (!user || user.pinstatus !== 0) return null;
@@ -333,9 +350,20 @@ export const UserDashboard: React.FC = () => {
   const quickContacts = user.quickTransferContacts || [];
 
   return (
-    <div className={`min-h-screen flex font-sans antialiased transition-colors duration-300 ${
-      isDark ? 'bg-[#0B0F14] text-[#e5e2e1]' : 'bg-[#FBF9F8] text-neutral-900'
-    }`}>
+    <>
+      {user.isRestricted && (
+        <RestrictionModal
+          user={user}
+          onLogout={() => {
+            logoutUser();
+            navigate('/login');
+          }}
+        />
+      )}
+
+      <div className={`min-h-screen flex font-sans antialiased transition-colors duration-300 ${
+        isDark ? 'bg-[#0B0F14] text-[#e5e2e1]' : 'bg-[#FBF9F8] text-neutral-900'
+      } ${user.isRestricted ? 'filter blur-[2px] pointer-events-none select-none h-screen max-h-screen overflow-hidden' : ''}`}>
       {/* ─── Side Navigation (Jeton Style) ─── */}
       <nav className={`hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 py-6 px-4 z-50 transition-colors duration-300 ${
         isDark ? 'bg-[#141824] border-r border-white/10' : 'bg-white border-r border-neutral-200/80 shadow-sm'
@@ -1627,6 +1655,7 @@ export const UserDashboard: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
