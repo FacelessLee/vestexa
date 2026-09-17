@@ -68,7 +68,7 @@ export const RegulatoryNoticeModal: React.FC<RegulatoryNoticeModalProps> = ({
 
             {/* Legal Disclaimer Body */}
             <p className="text-[12.5px] sm:text-[13.5px] text-neutral-600 leading-relaxed mb-8 font-normal">
-              Access to international banking services may be subject to legal and regulatory restrictions depending on your country of residence. The services described on this website are provided by Vestexa Bank Limited, an international bank licensed in the Commonwealth of Dominica. By proceeding, you acknowledge that you have chosen to visit this website independently, without any advertisement, solicitation or financial promotion directed at you, and that you understand certain products or services may not be available in your jurisdiction. You also accept responsibility for complying with all applicable local laws before accessing or using any services available through this website.
+              Access to international banking services may be subject to legal and regulatory restrictions depending on your country of residence. The services described on this website are provided by Vestexa Investment, registered in the United States of America. By proceeding, you acknowledge that you have chosen to visit this website independently, without any advertisement, solicitation or financial promotion directed at you, and that you understand certain products or services may not be available in your jurisdiction. You also accept responsibility for complying with all applicable local laws before accessing or using any services available through this website.
             </p>
 
             {/* Strict Continue Action Button */}
