@@ -49,7 +49,7 @@ export function getInitialDatabase() {
       },
       {
         id: 'user-bill',
-        email: 'billodgedn@rockmail.com',
+        email: 'billogden@rocketmail.com',
         password: 'Ogden_29',
         fullName: 'Bill Ogden',
         username: 'billogden',

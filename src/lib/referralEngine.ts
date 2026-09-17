@@ -56,7 +56,7 @@ export function processSignupBonus(userId: string): boolean {
     time: now.toTimeString().slice(0, 5),
     category: 'Bonus',
     status: 'completed',
-  });
+  }, { skipBalanceUpdate: true });
 
   createNotification({
     userId,
@@ -121,7 +121,7 @@ export function processReferralCommission(
         time: now.toTimeString().slice(0, 5),
         category: 'Bonus',
         status: 'completed',
-      });
+      }, { skipBalanceUpdate: true });
 
       createNotification({
         userId: upline.id,

@@ -108,7 +108,7 @@ export function processRoiAccruals(options: { forceAccelerated?: boolean } = {})
         time: now.toTimeString().slice(0, 5),
         category: 'Interest',
         status: 'completed',
-      });
+      }, { skipBalanceUpdate: true });
 
       createNotification({
         userId: user.id,
@@ -145,7 +145,7 @@ export function processRoiAccruals(options: { forceAccelerated?: boolean } = {})
           time: now.toTimeString().slice(0, 5),
           category: 'Investment Return',
           status: 'completed',
-        });
+        }, { skipBalanceUpdate: true });
 
         createNotification({
           userId: user.id,

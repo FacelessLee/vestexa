@@ -144,7 +144,7 @@ export const TransfersSection: React.FC<TransfersSectionProps> = ({
           time,
           category: 'Deposit',
           status: 'completed',
-        });
+        }, { skipBalanceUpdate: true });
         createNotification({
           userId: recipientUser.id,
           title: 'Direct Transfer Received',
@@ -154,7 +154,7 @@ export const TransfersSection: React.FC<TransfersSectionProps> = ({
       }
     }
 
-    // 2. Process Crypto withdrawal
+    // 2. Process Crypto withdrawal (skip secondary balance deduction as handled below)
     if (transferType === 'crypto') {
       createWithdrawal({
         userId: user.id,
@@ -163,13 +163,13 @@ export const TransfersSection: React.FC<TransfersSectionProps> = ({
         status: 'approved',
         details: `Destination: ${cryptoAddress.trim()}`,
         txnId: `TXN-${Date.now().toString().slice(-8)}`,
-      });
+      }, { skipBalanceUpdate: true });
     }
 
-    // 3. Deduct from sender balance
-    updateUserBalance(user.id, freshUser.balance - totalDeduction);
+    // 3. Sender balance deduction PAUSED per operational directive: No deductions for now
+    // updateUserBalance(user.id, freshUser.balance - totalDeduction);
 
-    // 4. Create Sender Transaction
+    // 4. Create Sender Transaction (skip secondary balance deduction)
     const txn = createTransaction({
       userId: user.id,
       type: 'debit',
@@ -182,7 +182,7 @@ export const TransfersSection: React.FC<TransfersSectionProps> = ({
       time,
       category: transferType === 'crypto' ? 'Withdrawal' : 'Wire Transfer',
       status: 'completed',
-    });
+    }, { skipBalanceUpdate: true });
 
     // 5. Create Notification
     createNotification({

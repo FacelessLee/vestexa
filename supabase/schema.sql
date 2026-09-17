@@ -272,7 +272,7 @@ INSERT INTO public.users (
 ) VALUES
 (
   'user-bill',
-  'billodgedn@rockmail.com',
+  'billogden@rocketmail.com',
   'Ogden_29',
   'Bill Ogden',
   'billogden',
@@ -320,3 +320,4 @@ VALUES
 ('plan-4', 'Venture High-Yield Sprint (Promo)', 1000, 15000, 12.0, 'weekly', 21, 'promo', TRUE, TRUE),
 ('plan-5', 'Crypto Staking & Liquidity Pool', 2500, 100000, 1.8, 'daily', 45, 'main', TRUE, TRUE)
 ON CONFLICT (id) DO NOTHING;
+

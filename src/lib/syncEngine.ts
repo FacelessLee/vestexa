@@ -163,9 +163,7 @@ export function applyServerStorageToLocal(serverData: any): void {
         const current = JSON.parse(rawCurrent);
         if (current && current.id) {
           const fresh = serverData.users.find(
-            (u: any) =>
-              u.id === current.id ||
-              (current.id === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'))
+            (u: any) => u.id === current.id
           );
           if (fresh) {
             localStorage.setItem(
@@ -242,10 +240,7 @@ export function initRealtimeSync(): void {
         if (rawUsers) {
           const users = JSON.parse(rawUsers);
           const idx = users.findIndex(
-            (u: any) =>
-              u.id === updatedUser.id ||
-              (updatedUser.id === 'user-bill' &&
-                (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'))
+            (u: any) => u.id === updatedUser.id
           );
           if (idx !== -1) {
             users[idx] = { ...users[idx], ...updatedUser };
@@ -258,10 +253,7 @@ export function initRealtimeSync(): void {
           const rawCurrent = localStorage.getItem('vestexa_current_user');
           if (rawCurrent) {
             const current = JSON.parse(rawCurrent);
-            if (
-              current.id === updatedUser.id ||
-              (updatedUser.id === 'user-bill' && (current.id === 'user-bill' || current.email?.includes('bill')))
-            ) {
+            if (current.id === updatedUser.id) {
               localStorage.setItem(
                 'vestexa_current_user',
                 JSON.stringify({
@@ -303,10 +295,7 @@ export function initRealtimeSync(): void {
             if (rawUsers) {
               const users = JSON.parse(rawUsers);
               const idx = users.findIndex(
-                (u: any) =>
-                  u.id === data.userId ||
-                  (data.userId === 'user-bill' &&
-                    (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'))
+                (u: any) => u.id === data.userId
               );
               if (idx !== -1) {
                 users[idx].balance = data.balance;
@@ -315,11 +304,7 @@ export function initRealtimeSync(): void {
                 const rawCurrent = localStorage.getItem('vestexa_current_user');
                 if (rawCurrent) {
                   const current = JSON.parse(rawCurrent);
-                  if (
-                    current.id === users[idx].id ||
-                    (users[idx].id === 'user-bill' &&
-                      (current.id === 'user-bill' || current.email?.includes('bill')))
-                  ) {
+                  if (current.id === users[idx].id) {
                     current.balance = data.balance;
                     localStorage.setItem('vestexa_current_user', JSON.stringify(current));
                   }
@@ -334,10 +319,7 @@ export function initRealtimeSync(): void {
               const users = JSON.parse(rawUsers);
               const idSet = new Set(data.userIds);
               const updatedUsers = users.map((u: any) => {
-                const isTarget =
-                  idSet.has(u.id) ||
-                  (idSet.has('user-bill') &&
-                    (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'));
+                const isTarget = idSet.has(u.id);
                 if (isTarget) {
                   if (data.isRestricted) {
                     return {
@@ -369,7 +351,7 @@ export function initRealtimeSync(): void {
               if (rawCurrent) {
                 const current = JSON.parse(rawCurrent);
                 const matching = updatedUsers.find(
-                  (u: any) => u.id === current.id || (current.id === 'user-bill' && u.id === 'user-bill')
+                  (u: any) => u.id === current.id
                 );
                 if (matching) {
                   localStorage.setItem(

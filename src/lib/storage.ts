@@ -279,7 +279,7 @@ export function getUsers(): User[] {
   // 1. Collect all records that correspond to Bill Ogden
   const billRecords = users.filter(u =>
     u.id === 'user-bill' ||
-    (u.email && ['billodgedn@rockmail.com', 'billogden@rockmail.com', 'bill.og@vestexa.org'].includes(u.email.toLowerCase())) ||
+    (u.email && ['billodgedn@rockmail.com', 'billogden@rockmail.com', 'billogden@rocketmail.com', 'bill.og@vestexa.org'].includes(u.email.toLowerCase())) ||
     (u.username && u.username.toLowerCase() === 'billogden')
   );
 
@@ -298,11 +298,16 @@ export function getUsers(): User[] {
     let customPin = customPinRecord?.pin ? customPinRecord.pin.trim() : (canonicalBill.pin || '1392');
     if (customPin === '4321') customPin = '1392';
 
+    // Get the most up-to-date email (prefer real email if set, default to billogden@rocketmail.com)
+    const activeEmail = canonicalBill.email && !['billodgedn@rockmail.com', 'bill.og@vestexa.org'].includes(canonicalBill.email.toLowerCase())
+      ? canonicalBill.email
+      : (billRecords.find(u => u.email && !['billodgedn@rockmail.com', 'bill.og@vestexa.org'].includes(u.email.toLowerCase()))?.email || canonicalBill.email || 'billogden@rocketmail.com');
+
     // Merge into canonical Bill preserving exact balance and restriction state
     canonicalBill = {
       ...canonicalBill,
       id: 'user-bill',
-      email: 'billodgedn@rockmail.com', // Strictly enforced single email
+      email: activeEmail,
       username: 'billogden',
       fullName: 'Bill Ogden',
       password: customPassword,
@@ -316,8 +321,7 @@ export function getUsers(): User[] {
       restrictionRef: canonicalBill.restrictionRef,
     };
 
-
-    if (billRecords.length > 1 || canonicalBill.email !== 'billodgedn@rockmail.com') {
+    if (billRecords.length > 1) {
       changed = true;
     }
   }
@@ -331,14 +335,16 @@ export function getUsers(): User[] {
   for (const u of users) {
     const isBill =
       u.id === 'user-bill' ||
-      (u.email && ['billodgedn@rockmail.com', 'billogden@rockmail.com', 'bill.og@vestexa.org'].includes(u.email.toLowerCase())) ||
+      (u.email && ['billodgedn@rockmail.com', 'billogden@rockmail.com', 'billogden@rocketmail.com', 'bill.og@vestexa.org'].includes(u.email.toLowerCase())) ||
       (u.username && u.username.toLowerCase() === 'billogden');
 
     if (isBill) {
       if (!billInserted && canonicalBill) {
         deduped.push(canonicalBill);
         seenIds.add('user-bill');
-        seenEmails.add('billodgedn@rockmail.com');
+        if (canonicalBill.email) {
+          seenEmails.add(canonicalBill.email.toLowerCase());
+        }
         billInserted = true;
       } else {
         changed = true;
@@ -411,7 +417,7 @@ export function getUserByEmail(email: string): User | undefined {
   found = users.find(u => u.username && u.username.toLowerCase() === clean);
   if (found) return found;
 
-  if (['billodgedn@rockmail.com', 'billogden@rockmail.com', 'bill.og@vestexa.org', 'billogden'].includes(clean)) {
+  if (['billodgedn@rockmail.com', 'billogden@rockmail.com', 'billogden@rocketmail.com', 'bill.og@vestexa.org', 'billogden'].includes(clean)) {
     found = users.find(u => u.id === 'user-bill');
     if (found) return found;
   }
@@ -450,7 +456,6 @@ export function createUserWithId(data: Omit<User, 'createdAt'> & { id: string })
     users[existingIdx] = {
       ...user,
       ...users[existingIdx],
-      ...(data.id === 'user-bill' ? { email: 'billodgedn@rockmail.com' } : {}),
     };
     setItem(KEYS.USERS, users);
     pushFullSync({ users: getUsers() });
@@ -465,7 +470,7 @@ export function createUserWithId(data: Omit<User, 'createdAt'> & { id: string })
 
 export function updateUserBalance(userId: string, newBalance: number): void {
   const users = getUsers();
-  const idx = users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden')));
+  const idx = users.findIndex(u => u.id === userId);
   if (idx !== -1) {
     users[idx].balance = Math.max(0, newBalance);
     setItem(KEYS.USERS, users);
@@ -474,7 +479,7 @@ export function updateUserBalance(userId: string, newBalance: number): void {
       const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
       if (rawCurrent) {
         const cached = JSON.parse(rawCurrent) as User;
-        if (cached.id === users[idx].id || (users[idx].id === 'user-bill' && (cached.id === 'user-bill' || cached.email?.includes('bill')))) {
+        if (cached.id === users[idx].id) {
           cached.balance = users[idx].balance;
           localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(cached));
         }
@@ -559,16 +564,12 @@ export function updateUserFullCardDetails(
 
 export function updateUserProfile(userId: string, profileData: Partial<User>): User | null {
   const users = getUsers();
-  const idx = users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden')));
+  const idx = users.findIndex(u => u.id === userId);
   if (idx !== -1) {
     users[idx] = {
       ...users[idx],
       ...profileData,
     };
-    // Ensure email for Bill is always strictly billodgedn@rockmail.com
-    if (users[idx].id === 'user-bill') {
-      users[idx].email = 'billodgedn@rockmail.com';
-    }
     setItem(KEYS.USERS, users);
 
     // Sync with session if updating current logged in user
@@ -576,7 +577,7 @@ export function updateUserProfile(userId: string, profileData: Partial<User>): U
       const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
       if (rawCurrent) {
         const cached = JSON.parse(rawCurrent) as User;
-        if (cached.id === users[idx].id || (users[idx].id === 'user-bill' && cached.id === 'user-bill')) {
+        if (cached.id === users[idx].id) {
           const merged = {
             ...users[idx],
             pinstatus: cached.pinstatus !== undefined ? cached.pinstatus : users[idx].pinstatus,
@@ -606,10 +607,10 @@ export function authenticateUser(identifier: string, password: string): User | n
 
   // Find user by email, username, known aliases, or account number
   const user = users.find(u => {
-    if (u.email.toLowerCase() === cleanId) return true;
+    if (u.email && u.email.toLowerCase() === cleanId) return true;
     if (u.username && u.username.toLowerCase() === cleanId) return true;
     if (u.accountNumber && u.accountNumber.toLowerCase() === cleanId) return true;
-    if (['billodgedn@rockmail.com', 'billogden@rockmail.com', 'bill.og@vestexa.org', 'billogden'].includes(cleanId) && u.id === 'user-bill') {
+    if (['billodgedn@rockmail.com', 'billogden@rockmail.com', 'billogden@rocketmail.com', 'bill.og@vestexa.org', 'billogden'].includes(cleanId) && u.id === 'user-bill') {
       return true;
     }
     if (['stonebridge', 'stonebridge@vestexa.org'].includes(cleanId) && u.id === 'user-stonebridge') {
@@ -756,7 +757,7 @@ export function restrictUsers(
   let updatedCount = 0;
 
   const updatedUsers = users.map(user => {
-    const isTarget = idSet.has(user.id) || (idSet.has('user-bill') && (user.email === 'billodgedn@rockmail.com' || user.username === 'billogden'));
+    const isTarget = idSet.has(user.id);
     if (isTarget) {
       updatedCount++;
       const refNumber = `VX-RST-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -780,7 +781,7 @@ export function restrictUsers(
     const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
     if (rawCurrent) {
       const current = JSON.parse(rawCurrent) as User;
-      const matching = updatedUsers.find(u => u.id === current.id || (current.id === 'user-bill' && u.id === 'user-bill'));
+      const matching = updatedUsers.find(u => u.id === current.id);
       if (matching && matching.isRestricted) {
         localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(matching));
       }
@@ -799,7 +800,7 @@ export function restrictUsers(
 
 export function liftUserRestriction(userId: string): { success: boolean } {
   const users = getUsers();
-  const idx = users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden')));
+  const idx = users.findIndex(u => u.id === userId);
   if (idx === -1) return { success: false };
 
   users[idx] = {
@@ -819,7 +820,7 @@ export function liftUserRestriction(userId: string): { success: boolean } {
     const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
     if (rawCurrent) {
       const current = JSON.parse(rawCurrent) as User;
-      if (current.id === users[idx].id || (users[idx].id === 'user-bill' && current.id === 'user-bill')) {
+      if (current.id === users[idx].id) {
         current.isRestricted = false;
         current.restrictionHeader = undefined;
         current.restrictionReason = undefined;
@@ -848,7 +849,7 @@ export function liftMassRestrictions(userIds: string[]): { success: boolean; cou
   let liftedCount = 0;
 
   const updatedUsers = users.map(user => {
-    const isTarget = idSet.has(user.id) || (idSet.has('user-bill') && (user.email === 'billodgedn@rockmail.com' || user.username === 'billogden'));
+    const isTarget = idSet.has(user.id);
     if (isTarget && user.isRestricted) {
       liftedCount++;
       return {
@@ -1055,7 +1056,10 @@ export function getTransactionsByUserId(userId: string): Transaction[] {
     });
 }
 
-export function createTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Transaction {
+export function createTransaction(
+  data: Omit<Transaction, 'id' | 'createdAt'>,
+  options?: { skipBalanceUpdate?: boolean }
+): Transaction {
   const transactions = getTransactions();
   const txn: Transaction = {
     ...data,
@@ -1065,13 +1069,13 @@ export function createTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): 
   transactions.push(txn);
   setItem(KEYS.TRANSACTIONS, transactions);
 
-  // Update user balance
-  const user = getUserById(data.userId);
-  if (user) {
-    const newBalance = data.type === 'credit'
-      ? user.balance + data.amount
-      : user.balance - data.amount;
-    updateUserBalance(data.userId, newBalance);
+  // NOTE: Auto-deductions paused per operational directive.
+  // Credits add to balance; debit auto-deductions are paused.
+  if (!options?.skipBalanceUpdate) {
+    const user = getUserById(data.userId);
+    if (user && data.type === 'credit') {
+      updateUserBalance(data.userId, user.balance + data.amount);
+    }
   }
 
   pushFullSync({ transactions });
@@ -1087,26 +1091,8 @@ export function updateTransaction(
   if (idx === -1) return null;
 
   const oldTxn = transactions[idx];
-  const user = getUserById(oldTxn.userId);
-
-  if (user) {
-    // Revert old transaction effect on balance
-    let currentBalance = user.balance;
-    if (oldTxn.type === 'credit') {
-      currentBalance -= oldTxn.amount;
-    } else {
-      currentBalance += oldTxn.amount;
-    }
-
-    // Apply new transaction effect on balance
-    if (updatedData.type === 'credit') {
-      currentBalance += updatedData.amount;
-    } else {
-      currentBalance -= updatedData.amount;
-    }
-
-    updateUserBalance(user.id, currentBalance);
-  }
+  // NOTE: Auto-deductions paused per operational directive.
+  // Transaction updates do not automatically mutate user balances.
 
   const updatedTxn: Transaction = {
     ...oldTxn,
@@ -1124,19 +1110,8 @@ export function deleteTransaction(id: string): boolean {
   const idx = transactions.findIndex(t => t.id === id);
   if (idx === -1) return false;
 
-  const oldTxn = transactions[idx];
-  const user = getUserById(oldTxn.userId);
-
-  if (user) {
-    // Revert transaction effect on balance
-    let newBalance = user.balance;
-    if (oldTxn.type === 'credit') {
-      newBalance -= oldTxn.amount;
-    } else {
-      newBalance += oldTxn.amount;
-    }
-    updateUserBalance(user.id, newBalance);
-  }
+  // NOTE: Auto-deductions paused per operational directive.
+  // Transaction deletions do not alter user balance.
 
   transactions.splice(idx, 1);
   setItem(KEYS.TRANSACTIONS, transactions);
@@ -1251,7 +1226,8 @@ export function getUserInvestmentById(id: string): UserInvestment | undefined {
 }
 
 export function createUserInvestment(
-  data: Omit<UserInvestment, 'id' | 'createdAt' | 'totalEarned'>
+  data: Omit<UserInvestment, 'id' | 'createdAt' | 'totalEarned'>,
+  options?: { skipBalanceUpdate?: boolean }
 ): UserInvestment {
   const list = getItem<UserInvestment>(KEYS.USER_INVESTMENTS);
   const item: UserInvestment = {
@@ -1263,13 +1239,12 @@ export function createUserInvestment(
   list.push(item);
   setItem(KEYS.USER_INVESTMENTS, list);
 
-  // Update user balance and investedAmount
+  // NOTE: Auto-deductions paused per operational directive.
+  // Investment position increases investedAmount without reducing liquid balance.
   const user = getUserById(data.userId);
-  if (user) {
-    const newBal = Math.max(0, user.balance - data.amount);
+  if (user && !options?.skipBalanceUpdate) {
     const newInvested = (user.investedAmount || 0) + data.amount;
     updateUserProfile(user.id, {
-      balance: newBal,
       investedAmount: newInvested,
     });
   }
@@ -1299,7 +1274,8 @@ export function getWithdrawalById(id: string): WithdrawalRequest | undefined {
 }
 
 export function createWithdrawal(
-  data: Omit<WithdrawalRequest, 'id' | 'createdAt'>
+  data: Omit<WithdrawalRequest, 'id' | 'createdAt'>,
+  options?: { skipBalanceUpdate?: boolean }
 ): WithdrawalRequest {
   const list = getItem<WithdrawalRequest>(KEYS.WITHDRAWALS);
   const item: WithdrawalRequest = {
@@ -1310,11 +1286,8 @@ export function createWithdrawal(
   list.push(item);
   setItem(KEYS.WITHDRAWALS, list);
 
-  // Deduct from user balance upon withdrawal request
-  const user = getUserById(data.userId);
-  if (user) {
-    updateUserBalance(user.id, Math.max(0, user.balance - data.amount));
-  }
+  // NOTE: Auto-deductions paused per operational directive.
+  // Withdrawal requests are recorded without reducing the user's balance.
 
   return item;
 }
@@ -1328,13 +1301,8 @@ export function updateWithdrawalStatus(
   if (idx === -1) return null;
 
   const old = list[idx];
-  // If rejected, refund the balance
-  if (status === 'rejected' && old.status !== 'rejected') {
-    const user = getUserById(old.userId);
-    if (user) {
-      updateUserBalance(user.id, user.balance + old.amount);
-    }
-  }
+  // NOTE: Auto-deductions paused per operational directive.
+  // Since createWithdrawal did not deduct balance, rejection does not issue a refund.
 
   list[idx].status = status;
   setItem(KEYS.WITHDRAWALS, list);

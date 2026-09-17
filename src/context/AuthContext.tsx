@@ -32,8 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(() => {
     const current = getCurrentUser();
     if (current && current.id) {
-      const targetId = (current.id === 'user-bill' || (current.email && current.email.toLowerCase().includes('bill'))) ? 'user-bill' : current.id;
-      const fresh = getUserById(targetId) || getUserById(current.id);
+      const fresh = getUserById(current.id);
       if (fresh) {
         const merged: User = {
           ...fresh,

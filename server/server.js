@@ -160,7 +160,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     const db = readDatabase();
-    const idx = db.users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden')));
+    const idx = db.users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billogden@rocketmail.com' || u.username === 'billogden')));
     if (idx === -1) {
       sendJson(res, 404, { success: false, error: 'User not found' });
       return;
@@ -184,7 +184,7 @@ const server = http.createServer(async (req, res) => {
     const now = new Date().toISOString();
     let count = 0;
     db.users = db.users.map(u => {
-      const isTarget = idSet.has(u.id) || (idSet.has('user-bill') && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'));
+      const isTarget = idSet.has(u.id);
       if (isTarget) {
         count++;
         const refNumber = `VX-RST-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -218,7 +218,7 @@ const server = http.createServer(async (req, res) => {
     const idSet = new Set(targetIds);
     let count = 0;
     db.users = db.users.map(u => {
-      const isTarget = idSet.has(u.id) || (idSet.has('user-bill') && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden'));
+      const isTarget = idSet.has(u.id);
       if (isTarget) {
         count++;
         return {
@@ -243,13 +243,12 @@ const server = http.createServer(async (req, res) => {
   if (url === '/api/users/update-profile' && req.method === 'POST') {
     const { userId, profileData } = await parseJsonBody(req);
     const db = readDatabase();
-    const idx = db.users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billodgedn@rockmail.com' || u.username === 'billogden')));
+    const idx = db.users.findIndex(u => u.id === userId || (userId === 'user-bill' && (u.email === 'billogden@rocketmail.com' || u.username === 'billogden')));
     if (idx === -1) {
       sendJson(res, 404, { success: false, error: 'User not found' });
       return;
     }
     db.users[idx] = { ...db.users[idx], ...profileData };
-    if (db.users[idx].id === 'user-bill') db.users[idx].email = 'billodgedn@rockmail.com';
     writeDatabase(db);
     broadcastSSE({ type: 'user_updated', userId: db.users[idx].id, timestamp: Date.now() });
     sendJson(res, 200, { success: true, user: db.users[idx] });

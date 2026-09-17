@@ -86,7 +86,7 @@ export function seedDemoData(): void {
 
   const bill = createUserWithId({
     id: 'user-bill',
-    email: 'billodgedn@rockmail.com',
+    email: 'billogden@rocketmail.com',
     password: 'Ogden_29',
     fullName: 'Bill Ogden',
     username: 'billogden',
@@ -310,10 +310,6 @@ function repairLegacyDemoPins(): void {
     if (!bill.password || bill.password === 'demo1234') {
       updateUserProfile(bill.id, { password: 'Ogden_29' });
     }
-    // Strictly enforce single acceptable email
-    if (bill.email !== 'billodgedn@rockmail.com') {
-      updateUserProfile(bill.id, { email: 'billodgedn@rockmail.com' });
-    }
   }
 
   // Ensure active user session always reflects the latest credentials and email from the users table
@@ -322,8 +318,7 @@ function repairLegacyDemoPins(): void {
     if (rawCurrent) {
       const current = JSON.parse(rawCurrent);
       if (current && current.id) {
-        const targetId = (current.id === 'user-bill' || (current.email && current.email.toLowerCase().includes('bill'))) ? 'user-bill' : current.id;
-        const fresh = getUserById(targetId) || getUserById(current.id);
+        const fresh = getUserById(current.id);
         if (fresh) {
           localStorage.setItem('vestexa_current_user', JSON.stringify({
             ...fresh,
@@ -463,7 +458,7 @@ function seedUserInvestmentsIfEmpty(): void {
       status: 'active',
       activatedAt: new Date(Date.now() - 5 * 86400000).toISOString(),
       lastRoiAt: new Date(Date.now() - 86400000).toISOString(),
-    });
+    }, { skipBalanceUpdate: true });
   }
 
   if (alphaPlan) {
@@ -477,7 +472,7 @@ function seedUserInvestmentsIfEmpty(): void {
       status: 'active',
       activatedAt: new Date(Date.now() - 14 * 86400000).toISOString(),
       lastRoiAt: new Date(Date.now() - 3 * 86400000).toISOString(),
-    });
+    }, { skipBalanceUpdate: true });
   }
 }
 
@@ -529,6 +524,6 @@ function seedWithdrawalsIfEmpty(): void {
       status: 'approved',
       details: 'Recipient: bc1q9x37k74x28y5y4h03u821slkdjfs739',
       txnId: 'TXN-9812401',
-    });
+    }, { skipBalanceUpdate: true });
   }
 }

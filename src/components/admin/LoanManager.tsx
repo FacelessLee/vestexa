@@ -44,7 +44,7 @@ export const LoanManager: React.FC<LoanManagerProps> = ({ formatCurrency, isDark
           time: now.toTimeString().slice(0, 5),
           category: 'Deposit',
           status: 'completed',
-        });
+        }, { skipBalanceUpdate: true });
       }
 
       createNotification({

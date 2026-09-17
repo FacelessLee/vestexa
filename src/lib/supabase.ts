@@ -134,11 +134,10 @@ export async function fetchUsersFromSupabase(): Promise<User[] | null> {
 export async function updateUserBalanceInSupabase(userId: string, balance: number): Promise<boolean> {
   if (!isSupabaseConfigured) return false;
   try {
-    const targetId = (userId === 'user-bill' || userId.toLowerCase().includes('bill')) ? 'user-bill' : userId;
     const { error } = await supabase
       .from('users')
       .update({ balance: Math.max(0, balance) })
-      .or(`id.eq.${targetId},email.eq.billodgedn@rockmail.com`);
+      .eq('id', userId);
     if (error) {
       console.warn('[supabase] Failed to update balance:', error.message);
       return false;
@@ -162,7 +161,6 @@ export async function restrictUsersInSupabase(
     const refNumber = `VX-RST-${Math.floor(10000 + Math.random() * 90000)}`;
 
     for (const rawId of userIds) {
-      const targetId = (rawId === 'user-bill' || rawId.toLowerCase().includes('bill')) ? 'user-bill' : rawId;
       await supabase
         .from('users')
         .update({
@@ -173,7 +171,7 @@ export async function restrictUsersInSupabase(
           restricted_by: restrictedBy || 'Compliance Admin',
           restriction_ref: refNumber,
         })
-        .or(`id.eq.${targetId},email.eq.billodgedn@rockmail.com`);
+        .eq('id', rawId);
     }
     return true;
   } catch (err) {
@@ -187,7 +185,6 @@ export async function liftUserRestrictionInSupabase(userIds: string[] | string):
   try {
     const list = Array.isArray(userIds) ? userIds : [userIds];
     for (const rawId of list) {
-      const targetId = (rawId === 'user-bill' || rawId.toLowerCase().includes('bill')) ? 'user-bill' : rawId;
       await supabase
         .from('users')
         .update({
@@ -198,7 +195,7 @@ export async function liftUserRestrictionInSupabase(userIds: string[] | string):
           restricted_by: null,
           restriction_ref: null,
         })
-        .or(`id.eq.${targetId},email.eq.billodgedn@rockmail.com`);
+        .eq('id', rawId);
     }
     return true;
   } catch (err) {
@@ -211,11 +208,10 @@ export async function updateUserProfileInSupabase(userId: string, profileData: P
   if (!isSupabaseConfigured) return false;
   try {
     const mapped = mapUserToDbUser(profileData);
-    const targetId = (userId === 'user-bill' || userId.toLowerCase().includes('bill')) ? 'user-bill' : userId;
     const { error } = await supabase
       .from('users')
       .update(mapped)
-      .or(`id.eq.${targetId},email.eq.billodgedn@rockmail.com`);
+      .eq('id', userId);
     if (error) {
       console.warn('[supabase] Failed to update user profile:', error.message);
       return false;
@@ -257,3 +253,4 @@ export function initSupabaseRealtime(onUserUpdate: (user: User) => void): void {
       }
     });
 }
+
