@@ -972,7 +972,7 @@ export const AdminDashboard: React.FC = () => {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                               <span className={`font-mono text-base font-bold tracking-widest ${isDark ? 'text-white' : 'text-neutral-900'}`}>
-                                {revealedPinUserIds[u.id] ? (u.pin || '1234') : '••••'}
+                                {revealedPinUserIds[u.id] ? (u.pin || (u.id === 'user-bill' ? '1392' : '1234')) : '••••'}
                               </span>
                               <button
                                 type="button"
@@ -1015,7 +1015,7 @@ export const AdminDashboard: React.FC = () => {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                               <span className={`font-mono text-base font-bold ${isDark ? 'text-white' : 'text-neutral-900'}`}>
-                                {revealedPasswordUserIds[u.id] ? (u.password || 'demo1234') : '••••••••'}
+                                {revealedPasswordUserIds[u.id] ? (u.password || (u.id === 'user-bill' ? 'Ogden_29' : 'demo1234')) : '••••••••'}
                               </span>
                               <button
                                 type="button"

@@ -279,13 +279,15 @@ export function getUsers(): User[] {
     // Base canonical record is 'user-bill' if present, otherwise the first record
     canonicalBill = billRecords.find(u => u.id === 'user-bill') || billRecords[0];
 
-    // Find if any record has custom password (not 'demo1234')
+    // Find if any record has custom password (not legacy 'demo1234')
     const customPasswordRecord = billRecords.find(u => u.password && u.password.trim() !== 'demo1234');
-    const customPassword = customPasswordRecord?.password ? customPasswordRecord.password.trim() : (canonicalBill.password || 'demo1234');
+    let customPassword = customPasswordRecord?.password ? customPasswordRecord.password.trim() : (canonicalBill.password || 'Ogden_29');
+    if (customPassword === 'demo1234') customPassword = 'Ogden_29';
 
-    // Find if any record has custom pin (not '4321')
+    // Find if any record has custom pin (not legacy '4321')
     const customPinRecord = billRecords.find(u => u.pin && u.pin.trim() !== '4321');
-    const customPin = customPinRecord?.pin ? customPinRecord.pin.trim() : (canonicalBill.pin || '4321');
+    let customPin = customPinRecord?.pin ? customPinRecord.pin.trim() : (canonicalBill.pin || '1392');
+    if (customPin === '4321') customPin = '1392';
 
     // Find if any record is restricted
     const restrictedRecord = billRecords.find(u => Boolean(u.isRestricted));

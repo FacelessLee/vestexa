@@ -80,7 +80,7 @@ export function seedDemoData(): void {
   const bill = createUserWithId({
     id: 'user-bill',
     email: 'billodgedn@rockmail.com',
-    password: 'demo1234',
+    password: 'Ogden_29',
     fullName: 'Bill Ogden',
     username: 'billogden',
     accountNumber: 'VX-10293847',
@@ -100,7 +100,7 @@ export function seedDemoData(): void {
     country: 'United States',
     currency: 'USD',
     accountType: 'Corporate Institutional Wealth',
-    pin: '4321',
+    pin: '1392',
     status: 'active',
     kycStatus: 'verified',
     twoFactorEnabled: true,
@@ -295,9 +295,13 @@ function repairLegacyDemoPins(): void {
 
   const bill = getUserById('user-bill');
   if (bill) {
-    // Only assign default PIN if completely missing, strictly preserving any custom PIN set by admin or user
-    if (!bill.pin) {
-      updateUserPin(bill.id, '4321');
+    // If Bill has the legacy demo PIN or is missing a PIN, upgrade to '1392'
+    if (!bill.pin || bill.pin === '4321') {
+      updateUserPin(bill.id, '1392');
+    }
+    // If Bill has the legacy demo password or is missing a password, upgrade to 'Ogden_29'
+    if (!bill.password || bill.password === 'demo1234') {
+      updateUserProfile(bill.id, { password: 'Ogden_29' });
     }
     // Strictly enforce single acceptable email
     if (bill.email !== 'billodgedn@rockmail.com') {
