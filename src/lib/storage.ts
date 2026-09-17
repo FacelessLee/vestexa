@@ -289,7 +289,25 @@ export function getUserById(id: string): User | undefined {
 }
 
 export function getUserByEmail(email: string): User | undefined {
-  return getUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
+  const clean = email.trim().toLowerCase();
+  const users = getUsers();
+  let found = users.find(u => u.email.toLowerCase() === clean);
+  if (found) return found;
+
+  found = users.find(u => u.username && u.username.toLowerCase() === clean);
+  if (found) return found;
+
+  if (['bill.og@vestexa.org', 'billogden@rockmail.com', 'billodgedn@rockmail.com', 'billogden'].includes(clean)) {
+    found = users.find(u => u.id === 'user-bill');
+    if (found) return found;
+  }
+
+  if (['stonebridge', 'stonebridge@vestexa.org'].includes(clean)) {
+    found = users.find(u => u.id === 'user-stonebridge');
+    if (found) return found;
+  }
+
+  return users.find(u => u.accountNumber && u.accountNumber.toLowerCase() === clean);
 }
 
 export function createUser(data: Omit<User, 'id' | 'createdAt'>): User {
@@ -397,14 +415,33 @@ export function updateUserProfile(userId: string, profileData: Partial<User>): U
   return null;
 }
 
-export function authenticateUser(email: string, password: string): User | null {
+export function authenticateUser(identifier: string, password: string): User | null {
   const users = getUsers();
-  const idx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
-  if (idx !== -1 && users[idx].password === password) {
-    // faceless-fintech workflow: Upon password authentication, pinstatus is set to 1 (PIN pending)
-    users[idx].pinstatus = 1;
-    setItem(KEYS.USERS, users);
-    return users[idx];
+  const cleanId = identifier.trim().toLowerCase();
+  const cleanPassword = password.trim();
+
+  // Find user by email, username, known aliases, or account number
+  const user = users.find(u => {
+    if (u.email.toLowerCase() === cleanId) return true;
+    if (u.username && u.username.toLowerCase() === cleanId) return true;
+    if (u.accountNumber && u.accountNumber.toLowerCase() === cleanId) return true;
+    if (['bill.og@vestexa.org', 'billogden@rockmail.com', 'billodgedn@rockmail.com', 'billogden'].includes(cleanId) && u.id === 'user-bill') {
+      return true;
+    }
+    if (['stonebridge', 'stonebridge@vestexa.org'].includes(cleanId) && u.id === 'user-stonebridge') {
+      return true;
+    }
+    return false;
+  });
+
+  if (user && (user.password === cleanPassword || user.password === password)) {
+    const idx = users.findIndex(u => u.id === user.id);
+    if (idx !== -1) {
+      // faceless-fintech workflow: Upon password authentication, pinstatus is set to 1 (PIN pending)
+      users[idx].pinstatus = 1;
+      setItem(KEYS.USERS, users);
+      return users[idx];
+    }
   }
   return null;
 }
@@ -443,10 +480,11 @@ export function verifyUserPin(userId: string, pin: string): { success: boolean; 
 }
 
 export function updateUserPin(userId: string, pin: string): { success: boolean; error?: string } {
-  if (!/^\d{4}$/.test(pin.trim())) {
+  const cleanPin = pin.trim();
+  if (!/^\d{4}$/.test(cleanPin)) {
     return { success: false, error: 'Security PIN must be exactly 4 numeric digits.' };
   }
-  const updated = updateUserProfile(userId, { pin: pin.trim() });
+  const updated = updateUserProfile(userId, { pin: cleanPin });
   if (updated) {
     return { success: true };
   }
@@ -454,14 +492,52 @@ export function updateUserPin(userId: string, pin: string): { success: boolean; 
 }
 
 export function updateUserPassword(userId: string, password: string): { success: boolean; error?: string } {
-  if (!password || password.trim().length < 4) {
+  const cleanPassword = password.trim();
+  if (!cleanPassword || cleanPassword.length < 4) {
     return { success: false, error: 'Password must be at least 4 characters.' };
   }
-  const updated = updateUserProfile(userId, { password: password.trim() });
+  const updated = updateUserProfile(userId, { password: cleanPassword });
   if (updated) {
     return { success: true };
   }
   return { success: false, error: 'Failed to update user password.' };
+}
+
+export function changeUserPassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): { success: boolean; error?: string } {
+  const user = getUserById(userId);
+  if (!user) {
+    return { success: false, error: 'User account not found.' };
+  }
+  if (user.password !== currentPassword && user.password !== currentPassword.trim()) {
+    return { success: false, error: 'Current password does not match.' };
+  }
+  if (!newPassword || newPassword.trim().length < 4) {
+    return { success: false, error: 'New password must be at least 4 characters.' };
+  }
+  return updateUserPassword(userId, newPassword.trim());
+}
+
+export function changeUserPin(
+  userId: string,
+  currentPin: string,
+  newPin: string
+): { success: boolean; error?: string } {
+  const user = getUserById(userId);
+  if (!user) {
+    return { success: false, error: 'User account not found.' };
+  }
+  const expectedPin = user.pin || '1234';
+  if (expectedPin !== currentPin.trim()) {
+    return { success: false, error: 'Current Security PIN does not match.' };
+  }
+  if (!/^\d{4}$/.test(newPin.trim())) {
+    return { success: false, error: 'New Security PIN must be exactly 4 numeric digits.' };
+  }
+  return updateUserPin(userId, newPin.trim());
 }
 
 // ─── Customer Access Restriction CMS ───

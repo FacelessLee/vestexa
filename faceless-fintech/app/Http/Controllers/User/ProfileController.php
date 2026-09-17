@@ -70,8 +70,7 @@ class ProfileController extends Controller
         }
         User::where('id',Auth::user()->id)
         ->update([
-            'pin' => $request->pin,
-           
+            'pin' => trim((string)$request->pin),
         ]);
    
 

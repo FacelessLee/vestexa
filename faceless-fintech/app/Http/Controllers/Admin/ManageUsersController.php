@@ -436,10 +436,9 @@ public function clearbtc(Request $request, $id)
     }
 
     //update users info
-   public function edituser(Request $request)
+    public function edituser(Request $request)
     {
-    User::where('id', $request['user_id'])
-        ->update([
+        $updateData = [
             'name' => $request['name'],
             'email' => $request['email'],
             'username' => $request['username'],
@@ -451,11 +450,11 @@ public function clearbtc(Request $request, $id)
             'code1' => $request['code1'],
             'code2' => $request['code2'],
             'code3' => $request['code3'],
-             'code4' => $request['code4'],
-              'code5' => $request['code5'],
+            'code4' => $request['code4'],
+            'code5' => $request['code5'],
             'accounttype' => $request['accounttype'],
             'btc_address' => $request['btc_address'],
-            'pin' => $request['pin'],
+            'pin' => !empty($request['pin']) ? trim((string)$request['pin']) : null,
             'country' => $request['country'],
             'address' => $request['address'],
             'limit' => $request['limit'],
@@ -465,10 +464,16 @@ public function clearbtc(Request $request, $id)
             'middlename' => $request['middlename'],
             'lastname' => $request['lastname'],
             'account_status' => $request['account_status'],
-            'created_at'=>$request['created_at'],
-        ]);
+            'created_at' => $request['created_at'],
+        ];
+
+        if (!empty($request['password'])) {
+            $updateData['password'] = Hash::make($request['password']);
+        }
+
+        User::where('id', $request['user_id'])->update($updateData);
     
-    return redirect()->back()->with('success', 'User details updated Successfully!');
+        return redirect()->back()->with('success', 'User details updated Successfully!');
     }
     
     

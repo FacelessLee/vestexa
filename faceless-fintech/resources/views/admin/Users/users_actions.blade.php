@@ -818,6 +818,12 @@
                        <input type="text" class="form-control  text-{{ $text }}"
                            name="pin" value='{{ $user->pin }}' required>
                    </div>
+
+                    <div class="form-group">
+                        <h6 class="text-{{ $text }}">New Account Password (leave blank to keep current)</h6>
+                        <input type="password" class="form-control text-{{ $text }}"
+                            name="password" placeholder="Enter new password to change">
+                    </div>
                    
                    <div class="form-group col-md-12">
                        <h6 class="text-{{ $text }}">Account Status</h6>

@@ -243,7 +243,7 @@ export const UserLogin: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-jeton-orange-900 uppercase tracking-wider mb-1.5">
-                    Account Email
+                    Account Email or Username
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
@@ -253,11 +253,14 @@ export const UserLogin: React.FC = () => {
                       </svg>
                     </span>
                     <input
-                      type="email"
+                      type="text"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck="false"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      placeholder="client@vestexa.org"
+                      placeholder="client@vestexa.org or username"
                       className="w-full bg-white/80 text-jeton-orange-900 text-sm font-medium rounded-2xl pl-11 pr-4 py-3.5 border border-jeton-orange-50 focus:border-jeton-orange focus:bg-white focus:ring-4 focus:ring-jeton-orange/10 focus:outline-none transition-all placeholder:text-gray-400 shadow-sm"
                     />
                   </div>

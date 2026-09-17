@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getTransactionsByUserId, updateUserProfile, getNotifications } from '../lib/storage';
+import { getTransactionsByUserId, updateUserProfile, getNotifications, changeUserPassword, changeUserPin } from '../lib/storage';
 import { getBtcPrice, usdToBtc } from '../lib/btcPrice';
 import { compressImage } from '../lib/imageCompressor';
 import type { Transaction, QuickTransferContact } from '../lib/storage';
@@ -48,6 +48,22 @@ export const UserDashboard: React.FC = () => {
   const [ethAddress, setEthAddress] = useState('');
   const [usdtAddress, setUsdtAddress] = useState('');
   const [copiedAcc, setCopiedAcc] = useState(false);
+
+  // Dedicated Password & PIN management states
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [passwordSuccessMsg, setPasswordSuccessMsg] = useState('');
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinSuccessMsg, setPinSuccessMsg] = useState('');
+  const [pinErrorMsg, setPinErrorMsg] = useState('');
+  const [isUpdatingPin, setIsUpdatingPin] = useState(false);
 
   // Quick Transfer states
   const [showAddContactModal, setShowAddContactModal] = useState(false);
@@ -272,9 +288,86 @@ export const UserDashboard: React.FC = () => {
     setTimeout(() => setProfileSuccessMsg(''), 4000);
   };
 
+  const handleUpdatePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setPasswordErrorMsg('');
+    setPasswordSuccessMsg('');
+
+    if (!currentPassword) {
+      setPasswordErrorMsg('Please enter your current password.');
+      return;
+    }
+    if (newPassword.length < 4) {
+      setPasswordErrorMsg('New password must be at least 4 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordErrorMsg('New password and confirmation do not match.');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    const res = changeUserPassword(user.id, currentPassword, newPassword);
+    setIsUpdatingPassword(false);
+
+    if (res.success) {
+      setPasswordSuccessMsg('Account password changed successfully! Your new password is now active.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      refreshUser();
+      setTimeout(() => setPasswordSuccessMsg(''), 5000);
+    } else {
+      setPasswordErrorMsg(res.error || 'Failed to update password.');
+    }
+  };
+
+  const handleUpdatePin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setPinErrorMsg('');
+    setPinSuccessMsg('');
+
+    if (!currentPin) {
+      setPinErrorMsg('Please enter your current 4-digit Security PIN.');
+      return;
+    }
+    if (!/^\d{4}$/.test(newPin.trim())) {
+      setPinErrorMsg('New Security PIN must be exactly 4 numeric digits.');
+      return;
+    }
+    if (newPin.trim() !== confirmPin.trim()) {
+      setPinErrorMsg('New PIN and confirmation do not match.');
+      return;
+    }
+
+    setIsUpdatingPin(true);
+    const res = changeUserPin(user.id, currentPin, newPin.trim());
+    setIsUpdatingPin(false);
+
+    if (res.success) {
+      setPinSuccessMsg(`Security PIN updated successfully to "${newPin.trim()}"! Use this PIN for portal login and transfer authorizations.`);
+      setCurrentPin('');
+      setNewPin('');
+      setConfirmPin('');
+      setUserPin(newPin.trim());
+      refreshUser();
+      setTimeout(() => setPinSuccessMsg(''), 5000);
+    } else {
+      setPinErrorMsg(res.error || 'Failed to update Security PIN.');
+    }
+  };
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    const cleanPin = userPin.trim();
+    if (cleanPin && !/^\d{4}$/.test(cleanPin)) {
+      setProfileSuccessMsg('Error: Transaction PIN must be exactly 4 numeric digits.');
+      setTimeout(() => setProfileSuccessMsg(''), 4000);
+      return;
+    }
     updateUserProfile(user.id, {
       phoneNumber,
       address,
@@ -283,7 +376,7 @@ export const UserDashboard: React.FC = () => {
       avatarUrl: avatarUrl || '',
       idDocumentUrl: idDocumentUrl || '',
       idDocumentBackUrl: idDocumentBackUrl || '',
-      pin: userPin,
+      ...(cleanPin ? { pin: cleanPin } : {}),
       twoFactorEnabled,
       btcAddress,
       ethAddress,
@@ -837,34 +930,222 @@ export const UserDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Security Credentials & Crypto Payout Settings */}
+                  {/* Security Credentials & Access Management (Password & PIN) */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Account Password Card */}
+                    <div className={`p-6 sm:p-7 rounded-3xl border flex flex-col justify-between ${
+                      isDark ? 'bg-[#161B22] border-gray-800/80' : 'bg-white border-slate-200 shadow-card'
+                    }`}>
+                      <div>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-xl">key</span>
+                          </div>
+                          <div>
+                            <h4 className={`text-lg font-display font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                              Account Password
+                            </h4>
+                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                              Update your primary portal sign-in password
+                            </p>
+                          </div>
+                        </div>
+
+                        {passwordSuccessMsg && (
+                          <div className="mb-4 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">check_circle</span>
+                            <span>{passwordSuccessMsg}</span>
+                          </div>
+                        )}
+                        {passwordErrorMsg && (
+                          <div className="mb-4 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">error</span>
+                            <span>{passwordErrorMsg}</span>
+                          </div>
+                        )}
+
+                        <div className="space-y-3.5">
+                          <div>
+                            <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                              Current Password
+                            </label>
+                            <input
+                              type={showPasswordFields ? 'text' : 'password'}
+                              value={currentPassword}
+                              onChange={(e) => setCurrentPassword(e.target.value)}
+                              placeholder="••••••••"
+                              className={`w-full text-sm rounded-2xl px-4 py-2.5 border focus:border-vestexa-coral focus:outline-none ${
+                                isDark ? 'bg-[#0D1117] text-white border-gray-800' : 'bg-slate-50 text-slate-900 border-slate-200'
+                              }`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                              New Password
+                            </label>
+                            <input
+                              type={showPasswordFields ? 'text' : 'password'}
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              placeholder="Min. 4 characters"
+                              className={`w-full text-sm rounded-2xl px-4 py-2.5 border focus:border-vestexa-coral focus:outline-none ${
+                                isDark ? 'bg-[#0D1117] text-white border-gray-800' : 'bg-slate-50 text-slate-900 border-slate-200'
+                              }`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                              Confirm New Password
+                            </label>
+                            <input
+                              type={showPasswordFields ? 'text' : 'password'}
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              placeholder="Re-enter new password"
+                              className={`w-full text-sm rounded-2xl px-4 py-2.5 border focus:border-vestexa-coral focus:outline-none ${
+                                isDark ? 'bg-[#0D1117] text-white border-gray-800' : 'bg-slate-50 text-slate-900 border-slate-200'
+                              }`}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswordFields(!showPasswordFields)}
+                              className={`text-xs font-semibold flex items-center gap-1 ${isDark ? 'text-gray-400 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                              <span className="material-symbols-outlined text-sm">
+                                {showPasswordFields ? 'visibility_off' : 'visibility'}
+                              </span>
+                              {showPasswordFields ? 'Hide Passwords' : 'Show Passwords'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-5">
+                        <button
+                          type="button"
+                          onClick={handleUpdatePassword}
+                          disabled={isUpdatingPassword}
+                          className="w-full py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all active:scale-[0.99] disabled:opacity-50"
+                        >
+                          {isUpdatingPassword ? 'Updating Password...' : 'Save New Password'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Security PIN Card */}
+                    <div className={`p-6 sm:p-7 rounded-3xl border flex flex-col justify-between ${
+                      isDark ? 'bg-[#161B22] border-gray-800/80' : 'bg-white border-slate-200 shadow-card'
+                    }`}>
+                      <div>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-xl">pin</span>
+                          </div>
+                          <div>
+                            <h4 className={`text-lg font-display font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                              4-Digit Security PIN
+                            </h4>
+                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                              Authorizes withdrawals, wire transfers, &amp; portal sign-ins
+                            </p>
+                          </div>
+                        </div>
+
+                        {pinSuccessMsg && (
+                          <div className="mb-4 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">check_circle</span>
+                            <span>{pinSuccessMsg}</span>
+                          </div>
+                        )}
+                        {pinErrorMsg && (
+                          <div className="mb-4 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">error</span>
+                            <span>{pinErrorMsg}</span>
+                          </div>
+                        )}
+
+                        <div className="space-y-3.5">
+                          <div>
+                            <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                              Current 4-Digit PIN
+                            </label>
+                            <input
+                              type="password"
+                              inputMode="numeric"
+                              maxLength={4}
+                              value={currentPin}
+                              onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                              placeholder="••••"
+                              className={`w-full font-mono font-bold tracking-widest text-center text-base rounded-2xl px-4 py-2.5 border focus:border-vestexa-coral focus:outline-none ${
+                                isDark ? 'bg-[#0D1117] text-white border-gray-800' : 'bg-slate-50 text-slate-900 border-slate-200'
+                              }`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                              New 4-Digit PIN
+                            </label>
+                            <input
+                              type="password"
+                              inputMode="numeric"
+                              maxLength={4}
+                              value={newPin}
+                              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                              placeholder="••••"
+                              className={`w-full font-mono font-bold tracking-widest text-center text-base rounded-2xl px-4 py-2.5 border focus:border-vestexa-coral focus:outline-none ${
+                                isDark ? 'bg-[#0D1117] text-white border-gray-800' : 'bg-slate-50 text-slate-900 border-slate-200'
+                              }`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
+                              Confirm New 4-Digit PIN
+                            </label>
+                            <input
+                              type="password"
+                              inputMode="numeric"
+                              maxLength={4}
+                              value={confirmPin}
+                              onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                              placeholder="••••"
+                              className={`w-full font-mono font-bold tracking-widest text-center text-base rounded-2xl px-4 py-2.5 border focus:border-vestexa-coral focus:outline-none ${
+                                isDark ? 'bg-[#0D1117] text-white border-gray-800' : 'bg-slate-50 text-slate-900 border-slate-200'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-5">
+                        <button
+                          type="button"
+                          onClick={handleUpdatePin}
+                          disabled={isUpdatingPin}
+                          className="w-full py-3 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all active:scale-[0.99] disabled:opacity-50"
+                        >
+                          {isUpdatingPin ? 'Updating PIN...' : 'Save New PIN'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2FA & Crypto Payout Rails */}
                   <div className={`p-6 sm:p-8 rounded-3xl border ${
                     isDark ? 'bg-[#161B22] border-gray-800/80' : 'bg-white border-slate-200 shadow-card'
                   }`}>
                     <h3 className={`text-xl font-display font-bold mb-6 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Security Credentials & Crypto Payout Rails
+                      Two-Factor Protection &amp; Crypto Payout Rails
                     </h3>
 
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div>
-                          <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
-                            4-Digit Transaction PIN
-                          </label>
-                          <input
-                            type="password"
-                            maxLength={4}
-                            value={userPin}
-                            onChange={(e) => setUserPin(e.target.value)}
-                            placeholder="e.g. 1234"
-                            className={`w-full text-sm font-mono font-bold rounded-2xl px-4 py-3 border focus:border-vestexa-coral focus:outline-none ${
-                              isDark ? 'bg-[#0D1117] text-white border-gray-800' : 'bg-slate-50 text-slate-900 border-slate-200'
-                            }`}
-                          />
-                          <p className={`text-[11px] mt-1.5 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
-                            Required to authorize outbound wire transfers and withdrawals.
-                          </p>
-                        </div>
 
                         <div className="flex flex-col justify-between">
                           <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
