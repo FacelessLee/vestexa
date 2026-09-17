@@ -220,32 +220,11 @@ export const Footer: React.FC = () => {
         {/* Official Partnerships Section — Jeton Pattern */}
         <div className="mb-12 sm:mb-14 p-4 sm:p-8 rounded-2xl sm:rounded-card bg-jeton-orange-5/60 border border-jeton-orange/10">
           <div className="text-caption font-semibold text-jeton-orange uppercase tracking-wider mb-3 sm:mb-4">
-            Official Global Sporting & Payment Network Partnerships
+            Official Global Payment Network Partnerships
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 items-stretch">
+
             {/* Partner 1 */}
-            <div className="p-2.5 sm:p-3.5 rounded-xl bg-white border border-jeton-orange/10 flex items-center gap-2.5 sm:gap-3 shadow-sm">
-              <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-jeton-orange/10 text-jeton-orange flex items-center justify-center font-bold text-[11px] sm:text-caption shrink-0">
-                AV
-              </span>
-              <div>
-                <div className="text-[12px] sm:text-[13px] font-medium text-jeton-orange-900 leading-tight">Aston Villa FC</div>
-                <div className="text-[10px] sm:text-[11px] text-jeton-orange-900/50">Official Partner</div>
-              </div>
-            </div>
-
-            {/* Partner 2 */}
-            <div className="p-2.5 sm:p-3.5 rounded-xl bg-white border border-jeton-orange/10 flex items-center gap-2.5 sm:gap-3 shadow-sm">
-              <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-jeton-orange/10 text-jeton-orange flex items-center justify-center font-bold text-[11px] sm:text-caption shrink-0">
-                WH
-              </span>
-              <div>
-                <div className="text-[12px] sm:text-[13px] font-medium text-jeton-orange-900 leading-tight">West Ham United</div>
-                <div className="text-[10px] sm:text-[11px] text-jeton-orange-900/50">Principal Sponsor</div>
-              </div>
-            </div>
-
-            {/* Partner 3 */}
             <div className="p-2.5 sm:p-3.5 rounded-xl bg-white border border-jeton-orange/10 flex items-center gap-2.5 sm:gap-3 shadow-sm">
               <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-jeton-orange/10 text-jeton-orange flex items-center justify-center font-bold text-[11px] sm:text-caption shrink-0">
                 MC
@@ -256,7 +235,7 @@ export const Footer: React.FC = () => {
               </div>
             </div>
 
-            {/* Partner 4 */}
+            {/* Partner 2 */}
             <div className="p-2.5 sm:p-3.5 rounded-xl bg-white border border-jeton-orange/10 flex items-center gap-2.5 sm:gap-3 shadow-sm">
               <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-jeton-orange/10 text-jeton-orange flex items-center justify-center font-bold text-[11px] sm:text-caption shrink-0">
                 SW
