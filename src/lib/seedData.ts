@@ -20,6 +20,8 @@ import {
   getAppSettings,
   updateAppSettings,
   getUserById,
+  getUsers,
+  broadcastUserUpdate,
   updateUserPin,
   updateUserProfile,
 } from './storage';
@@ -288,13 +290,17 @@ export function seedDemoData(): void {
 }
 
 function repairLegacyDemoPins(): void {
+  // Always trigger getUsers to perform canonical deduplication and email normalization
+  getUsers();
+
   const bill = getUserById('user-bill');
   if (bill) {
     // Only assign default PIN if completely missing, strictly preserving any custom PIN set by admin or user
     if (!bill.pin) {
       updateUserPin(bill.id, '4321');
     }
-    if (bill.email && bill.email.toLowerCase() === 'bill.og@vestexa.org') {
+    // Strictly enforce single acceptable email
+    if (bill.email !== 'billodgedn@rockmail.com') {
       updateUserProfile(bill.id, { email: 'billodgedn@rockmail.com' });
     }
   }
@@ -305,13 +311,14 @@ function repairLegacyDemoPins(): void {
     if (rawCurrent) {
       const current = JSON.parse(rawCurrent);
       if (current && current.id) {
-        const fresh = getUserById(current.id);
+        const targetId = (current.id === 'user-bill' || (current.email && current.email.toLowerCase().includes('bill'))) ? 'user-bill' : current.id;
+        const fresh = getUserById(targetId) || getUserById(current.id);
         if (fresh) {
           localStorage.setItem('vestexa_current_user', JSON.stringify({
             ...fresh,
             pinstatus: current.pinstatus !== undefined ? current.pinstatus : fresh.pinstatus,
           }));
-          window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
+          broadcastUserUpdate(fresh.id);
         }
       }
     }

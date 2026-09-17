@@ -9,6 +9,7 @@ import {
   authenticateAdmin,
   getUserById,
   verifyUserPin,
+  broadcastUserUpdate,
 } from '../lib/storage';
 
 interface AuthContextType {
@@ -28,16 +29,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => getCurrentUser());
   const [admin, setAdmin] = useState<Admin | null>(() => getCurrentAdmin());
 
+  const refreshUser = useCallback(() => {
+    const current = getCurrentUser();
+    if (current && current.id) {
+      const targetId = (current.id === 'user-bill' || (current.email && current.email.toLowerCase().includes('bill'))) ? 'user-bill' : current.id;
+      const fresh = getUserById(targetId) || getUserById(current.id);
+      if (fresh) {
+        const merged: User = {
+          ...fresh,
+          pinstatus: current.pinstatus !== undefined ? current.pinstatus : fresh.pinstatus,
+        };
+        setCurrentUser(merged);
+        setUser(merged);
+      }
+    } else {
+      setUser(null);
+    }
+  }, []);
+
   useEffect(() => {
     setUser(getCurrentUser());
     setAdmin(getCurrentAdmin());
-  }, []);
+
+    const handleUpdate = () => {
+      refreshUser();
+      setAdmin(getCurrentAdmin());
+    };
+
+    window.addEventListener('vestexa_user_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('vestexa_channel');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'user_updated' || event.data?.type === 'session_updated') {
+            handleUpdate();
+          }
+        };
+      }
+    } catch {
+      // ignore
+    }
+
+    return () => {
+      window.removeEventListener('vestexa_user_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+      if (bc) {
+        bc.close();
+      }
+    };
+  }, [refreshUser]);
 
   const loginUser = useCallback((email: string, password: string): User | null => {
     const u = authenticateUser(email, password);
     if (u) {
       setCurrentUser(u);
       setUser(u);
+      broadcastUserUpdate(u.id);
     }
     return u;
   }, []);
@@ -54,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const fresh = { ...updated, pinstatus: 0 };
         setCurrentUser(fresh);
         setUser(fresh);
+        broadcastUserUpdate(fresh.id);
       }
     }
     return res;
@@ -71,22 +122,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logoutUser = useCallback(() => {
     setCurrentUser(null);
     setUser(null);
+    broadcastUserUpdate();
   }, []);
 
   const logoutAdmin = useCallback(() => {
     setCurrentAdmin(null);
     setAdmin(null);
-  }, []);
-
-  const refreshUser = useCallback(() => {
-    const current = getCurrentUser();
-    if (current) {
-      const fresh = getUserById(current.id);
-      if (fresh) {
-        setCurrentUser(fresh);
-        setUser(fresh);
-      }
-    }
   }, []);
 
   return (

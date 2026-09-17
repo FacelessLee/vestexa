@@ -147,8 +147,28 @@ export const AdminDashboard: React.FC = () => {
       refreshUsers();
     };
     window.addEventListener('vestexa_user_updated', handleUserUpdate);
+    window.addEventListener('storage', handleUserUpdate);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('vestexa_channel');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'user_updated' || event.data?.type === 'session_updated') {
+            handleUserUpdate();
+          }
+        };
+      }
+    } catch {
+      // ignore
+    }
+
     return () => {
       window.removeEventListener('vestexa_user_updated', handleUserUpdate);
+      window.removeEventListener('storage', handleUserUpdate);
+      if (bc) {
+        bc.close();
+      }
     };
   }, [admin, navigate]);
 

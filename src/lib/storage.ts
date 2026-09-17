@@ -244,17 +244,113 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+export function broadcastUserUpdate(userId?: string): void {
+  try {
+    window.dispatchEvent(new CustomEvent('vestexa_user_updated', { detail: { userId } }));
+  } catch {
+    // ignore
+  }
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel('vestexa_channel');
+      bc.postMessage({ type: 'user_updated', userId, timestamp: Date.now() });
+      bc.close();
+    }
+  } catch {
+    // ignore
+  }
+}
+
 // ─── Users ───
 
 export function getUsers(): User[] {
   const users = getItem<User>(KEYS.USERS);
   let changed = false;
-  const sanitized = users.map(u => {
-    let current = u;
-    if (current.email && current.email.toLowerCase() === 'bill.og@vestexa.org') {
-      current = { ...current, email: 'billodgedn@rockmail.com' };
+
+  // 1. Collect all records that correspond to Bill Ogden
+  const billRecords = users.filter(u =>
+    u.id === 'user-bill' ||
+    (u.email && ['billodgedn@rockmail.com', 'billogden@rockmail.com', 'bill.og@vestexa.org'].includes(u.email.toLowerCase())) ||
+    (u.username && u.username.toLowerCase() === 'billogden')
+  );
+
+  let canonicalBill: User | null = null;
+  if (billRecords.length > 0) {
+    // Base canonical record is 'user-bill' if present, otherwise the first record
+    canonicalBill = billRecords.find(u => u.id === 'user-bill') || billRecords[0];
+
+    // Find if any record has custom password (not 'demo1234')
+    const customPasswordRecord = billRecords.find(u => u.password && u.password.trim() !== 'demo1234');
+    const customPassword = customPasswordRecord?.password ? customPasswordRecord.password.trim() : (canonicalBill.password || 'demo1234');
+
+    // Find if any record has custom pin (not '4321')
+    const customPinRecord = billRecords.find(u => u.pin && u.pin.trim() !== '4321');
+    const customPin = customPinRecord?.pin ? customPinRecord.pin.trim() : (canonicalBill.pin || '4321');
+
+    // Find if any record is restricted
+    const restrictedRecord = billRecords.find(u => Boolean(u.isRestricted));
+
+    // Find if any record has modified balance
+    const customBalanceRecord = billRecords.find(u => typeof u.balance === 'number' && u.balance !== 739565.21);
+    const resolvedBalance = customBalanceRecord ? customBalanceRecord.balance : canonicalBill.balance;
+
+    // Merge into canonical Bill
+    canonicalBill = {
+      ...canonicalBill,
+      id: 'user-bill',
+      email: 'billodgedn@rockmail.com', // Strictly enforced single email
+      username: 'billogden',
+      fullName: 'Bill Ogden',
+      password: customPassword,
+      pin: customPin,
+      balance: resolvedBalance,
+      isRestricted: restrictedRecord ? true : Boolean(canonicalBill.isRestricted),
+      restrictionHeader: restrictedRecord?.restrictionHeader || canonicalBill.restrictionHeader,
+      restrictionReason: restrictedRecord?.restrictionReason || canonicalBill.restrictionReason,
+      restrictedAt: restrictedRecord?.restrictedAt || canonicalBill.restrictedAt,
+      restrictedBy: restrictedRecord?.restrictedBy || canonicalBill.restrictedBy,
+      restrictionRef: restrictedRecord?.restrictionRef || canonicalBill.restrictionRef,
+    };
+
+    if (billRecords.length > 1 || canonicalBill.email !== 'billodgedn@rockmail.com') {
       changed = true;
     }
+  }
+
+  // 2. Filter out duplicate Bill records and deduplicate other users by ID / Email
+  const deduped: User[] = [];
+  const seenIds = new Set<string>();
+  const seenEmails = new Set<string>();
+  let billInserted = false;
+
+  for (const u of users) {
+    const isBill =
+      u.id === 'user-bill' ||
+      (u.email && ['billodgedn@rockmail.com', 'billogden@rockmail.com', 'bill.og@vestexa.org'].includes(u.email.toLowerCase())) ||
+      (u.username && u.username.toLowerCase() === 'billogden');
+
+    if (isBill) {
+      if (!billInserted && canonicalBill) {
+        deduped.push(canonicalBill);
+        seenIds.add('user-bill');
+        seenEmails.add('billodgedn@rockmail.com');
+        billInserted = true;
+      } else {
+        changed = true;
+      }
+      continue;
+    }
+
+    const emailKey = u.email?.toLowerCase() || '';
+    if (seenIds.has(u.id) || (emailKey && seenEmails.has(emailKey))) {
+      changed = true;
+      continue;
+    }
+
+    seenIds.add(u.id);
+    if (emailKey) seenEmails.add(emailKey);
+
+    let current = u;
     if (current.quickTransferContacts) {
       const cleaned = current.quickTransferContacts.filter(
         c => !c.name.toLowerCase().includes('stonebridge') && !c.name.toLowerCase().includes('bill')
@@ -264,27 +360,40 @@ export function getUsers(): User[] {
         current = { ...current, quickTransferContacts: cleaned };
       }
     }
-    return current;
-  });
-  if (changed) {
-    setItem(KEYS.USERS, sanitized);
+    deduped.push(current);
+  }
+
+  if (!billInserted && canonicalBill) {
+    deduped.push(canonicalBill);
+    changed = true;
+  }
+
+  if (changed || deduped.length !== users.length) {
+    setItem(KEYS.USERS, deduped);
     try {
       const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
       if (rawCurrent) {
         const cached = JSON.parse(rawCurrent) as User;
-        if (cached.email && cached.email.toLowerCase() === 'bill.og@vestexa.org') {
-          cached.email = 'billodgedn@rockmail.com';
-          localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(cached));
+        if (cached.id === 'user-bill' || cached.email?.toLowerCase().includes('bill')) {
+          if (canonicalBill) {
+            localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify({
+              ...canonicalBill,
+              pinstatus: cached.pinstatus !== undefined ? cached.pinstatus : canonicalBill.pinstatus,
+            }));
+          }
         }
       }
     } catch {
       // ignore
     }
   }
-  return sanitized;
+  return deduped;
 }
 
 export function getUserById(id: string): User | undefined {
+  if (id === 'user-bill') {
+    return getUsers().find(u => u.id === 'user-bill');
+  }
   return getUsers().find(u => u.id === id);
 }
 
@@ -297,7 +406,7 @@ export function getUserByEmail(email: string): User | undefined {
   found = users.find(u => u.username && u.username.toLowerCase() === clean);
   if (found) return found;
 
-  if (['bill.og@vestexa.org', 'billogden@rockmail.com', 'billodgedn@rockmail.com', 'billogden'].includes(clean)) {
+  if (['billodgedn@rockmail.com', 'billogden@rockmail.com', 'bill.og@vestexa.org', 'billogden'].includes(clean)) {
     found = users.find(u => u.id === 'user-bill');
     if (found) return found;
   }
@@ -319,6 +428,7 @@ export function createUser(data: Omit<User, 'id' | 'createdAt'>): User {
   };
   users.push(user);
   setItem(KEYS.USERS, users);
+  broadcastUserUpdate(user.id);
   return user;
 }
 
@@ -330,15 +440,19 @@ export function createUserWithId(data: Omit<User, 'createdAt'> & { id: string })
     createdAt: existingIdx !== -1 ? users[existingIdx].createdAt : new Date().toISOString(),
   };
   if (existingIdx !== -1) {
+    // Preserve all existing custom user data (passwords, PINs, restrictions, balances)
     users[existingIdx] = {
-      ...users[existingIdx],
       ...user,
+      ...users[existingIdx],
+      ...(data.id === 'user-bill' ? { email: 'billodgedn@rockmail.com' } : {}),
     };
+    setItem(KEYS.USERS, users);
+    return users[existingIdx];
   } else {
     users.push(user);
+    setItem(KEYS.USERS, users);
+    return user;
   }
-  setItem(KEYS.USERS, users);
-  return user;
 }
 
 export function updateUserBalance(userId: string, newBalance: number): void {
@@ -347,6 +461,21 @@ export function updateUserBalance(userId: string, newBalance: number): void {
   if (idx !== -1) {
     users[idx].balance = Math.max(0, newBalance);
     setItem(KEYS.USERS, users);
+
+    try {
+      const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
+      if (rawCurrent) {
+        const cached = JSON.parse(rawCurrent) as User;
+        if (cached.id === userId) {
+          cached.balance = users[idx].balance;
+          localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(cached));
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    broadcastUserUpdate(userId);
   }
 }
 
@@ -357,6 +486,22 @@ export function updateUserCardDetails(userId: string, cardLast4: string, cardExp
     users[idx].cardLast4 = cardLast4;
     users[idx].cardExp = cardExp;
     setItem(KEYS.USERS, users);
+
+    try {
+      const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
+      if (rawCurrent) {
+        const cached = JSON.parse(rawCurrent) as User;
+        if (cached.id === userId) {
+          cached.cardLast4 = cardLast4;
+          cached.cardExp = cardExp;
+          localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(cached));
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    broadcastUserUpdate(userId);
   }
 }
 
@@ -376,6 +521,24 @@ export function updateUserFullCardDetails(
     users[idx].cardLast4 = cardLast4;
     users[idx].cardExp = cardExp;
     setItem(KEYS.USERS, users);
+
+    try {
+      const rawCurrent = localStorage.getItem(KEYS.CURRENT_USER);
+      if (rawCurrent) {
+        const cached = JSON.parse(rawCurrent) as User;
+        if (cached.id === userId) {
+          cached.cardNumber = cardNumber;
+          cached.cardHolderName = cardHolderName;
+          cached.cardLast4 = cardLast4;
+          cached.cardExp = cardExp;
+          localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(cached));
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    broadcastUserUpdate(userId);
     return users[idx];
   }
   return null;
@@ -389,6 +552,10 @@ export function updateUserProfile(userId: string, profileData: Partial<User>): U
       ...users[idx],
       ...profileData,
     };
+    // Ensure email for Bill is always strictly billodgedn@rockmail.com
+    if (users[idx].id === 'user-bill') {
+      users[idx].email = 'billodgedn@rockmail.com';
+    }
     setItem(KEYS.USERS, users);
 
     // Sync with session if updating current logged in user
@@ -397,18 +564,18 @@ export function updateUserProfile(userId: string, profileData: Partial<User>): U
       if (rawCurrent) {
         const cached = JSON.parse(rawCurrent) as User;
         if (cached.id === userId) {
-          localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(users[idx]));
+          const merged = {
+            ...users[idx],
+            pinstatus: cached.pinstatus !== undefined ? cached.pinstatus : users[idx].pinstatus,
+          };
+          localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(merged));
         }
       }
     } catch {
       // ignore
     }
 
-    try {
-      window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
-    } catch {
-      // ignore
-    }
+    broadcastUserUpdate(userId);
 
     return users[idx];
   }
@@ -425,7 +592,7 @@ export function authenticateUser(identifier: string, password: string): User | n
     if (u.email.toLowerCase() === cleanId) return true;
     if (u.username && u.username.toLowerCase() === cleanId) return true;
     if (u.accountNumber && u.accountNumber.toLowerCase() === cleanId) return true;
-    if (['bill.og@vestexa.org', 'billogden@rockmail.com', 'billodgedn@rockmail.com', 'billogden'].includes(cleanId) && u.id === 'user-bill') {
+    if (['billodgedn@rockmail.com', 'billogden@rockmail.com', 'bill.og@vestexa.org', 'billogden'].includes(cleanId) && u.id === 'user-bill') {
       return true;
     }
     if (['stonebridge', 'stonebridge@vestexa.org'].includes(cleanId) && u.id === 'user-stonebridge') {
@@ -434,12 +601,21 @@ export function authenticateUser(identifier: string, password: string): User | n
     return false;
   });
 
-  if (user && (user.password === cleanPassword || user.password === password)) {
+  if (user && (user.password === cleanPassword || user.password === password || user.password?.trim() === cleanPassword)) {
     const idx = users.findIndex(u => u.id === user.id);
     if (idx !== -1) {
       // faceless-fintech workflow: Upon password authentication, pinstatus is set to 1 (PIN pending)
       users[idx].pinstatus = 1;
       setItem(KEYS.USERS, users);
+
+      try {
+        const sessionUser = { ...users[idx], pinstatus: 1 };
+        localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(sessionUser));
+      } catch {
+        // ignore
+      }
+
+      broadcastUserUpdate(users[idx].id);
       return users[idx];
     }
   }
@@ -454,7 +630,7 @@ export function verifyUserPin(userId: string, pin: string): { success: boolean; 
   }
 
   const expectedPin = users[idx].pin || '1234';
-  if (pin.trim() !== expectedPin) {
+  if (pin.trim() !== expectedPin.trim()) {
     return { success: false, message: 'Invalid PIN. Please try again.' };
   }
 
@@ -476,6 +652,7 @@ export function verifyUserPin(userId: string, pin: string): { success: boolean; 
     // ignore
   }
 
+  broadcastUserUpdate(userId);
   return { success: true, message: 'PIN verified successfully' };
 }
 
@@ -594,12 +771,7 @@ export function restrictUsers(
     // ignore
   }
 
-  // Broadcast event across windows/tabs
-  try {
-    window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
-  } catch {
-    // ignore
-  }
+  broadcastUserUpdate(userIds[0]);
 
   return { success: true, count: updatedCount };
 }
@@ -627,18 +799,20 @@ export function liftUserRestriction(userId: string): { success: boolean } {
     if (rawCurrent) {
       const current = JSON.parse(rawCurrent) as User;
       if (current.id === userId) {
-        localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(users[idx]));
+        current.isRestricted = false;
+        current.restrictionHeader = undefined;
+        current.restrictionReason = undefined;
+        current.restrictedAt = undefined;
+        current.restrictedBy = undefined;
+        current.restrictionRef = undefined;
+        localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(current));
       }
     }
   } catch {
     // ignore
   }
 
-  try {
-    window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
-  } catch {
-    // ignore
-  }
+  broadcastUserUpdate(userId);
 
   return { success: true };
 }
@@ -680,11 +854,7 @@ export function liftMassRestrictions(userIds: string[]): { success: boolean; cou
     // ignore
   }
 
-  try {
-    window.dispatchEvent(new CustomEvent('vestexa_user_updated'));
-  } catch {
-    // ignore
-  }
+  broadcastUserUpdate();
 
   return { success: true, count: liftedCount };
 }
@@ -957,7 +1127,8 @@ export function getCurrentUser(): User | null {
     const raw = localStorage.getItem(KEYS.CURRENT_USER);
     if (!raw) return null;
     const cached = JSON.parse(raw) as User;
-    const fresh = getUserById(cached.id);
+    const targetId = (cached.id === 'user-bill' || (cached.email && cached.email.toLowerCase().includes('bill'))) ? 'user-bill' : cached.id;
+    const fresh = getUserById(targetId) || getUserById(cached.id);
     if (!fresh) return null;
     return {
       ...fresh,
