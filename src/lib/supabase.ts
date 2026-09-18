@@ -115,6 +115,36 @@ export function mapUserToDbUser(user: Partial<User>): Record<string, any> {
   return mapped;
 }
 
+export function mapDbAdminToAdmin(row: any): Admin {
+  const isSuper = Boolean(
+    row.is_super_admin ||
+    row.role === 'super_admin' ||
+    (row.email && row.email.toLowerCase().trim() === 'admin@vestexa.org')
+  );
+
+  return {
+    id: row.id,
+    email: (row.email || '').toLowerCase().trim(),
+    password: row.password,
+    fullName: row.full_name || '',
+    role: isSuper ? 'super_admin' : 'admin',
+    isSuperAdmin: isSuper,
+    assignedUserIds: Array.isArray(row.assigned_user_ids) ? row.assigned_user_ids : [],
+    createdAt: row.created_at || new Date().toISOString(),
+  };
+}
+
+export function mapAdminToDbAdmin(admin: Partial<Admin>): Record<string, any> {
+  const mapped: Record<string, any> = {};
+  if (admin.id !== undefined) mapped.id = admin.id;
+  if (admin.email !== undefined) mapped.email = admin.email.toLowerCase().trim();
+  if (admin.password !== undefined) mapped.password = admin.password;
+  if (admin.fullName !== undefined) mapped.full_name = admin.fullName;
+  if (admin.role !== undefined) mapped.role = admin.role;
+  if (admin.isSuperAdmin !== undefined) mapped.is_super_admin = admin.isSuperAdmin;
+  return mapped;
+}
+
 // ─── Database Operations ───
 
 export async function fetchUsersFromSupabase(): Promise<User[] | null> {
@@ -128,6 +158,76 @@ export async function fetchUsersFromSupabase(): Promise<User[] | null> {
   } catch (err) {
     console.warn('[supabase] Error querying users:', err);
     return null;
+  }
+}
+
+export async function fetchAdminsFromSupabase(): Promise<Admin[] | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase.from('admins').select('*');
+    if (error || !data) {
+      return null;
+    }
+    return data.map(mapDbAdminToAdmin);
+  } catch (err) {
+    console.warn('[supabase] Error querying admins:', err);
+    return null;
+  }
+}
+
+export async function fetchAdminByEmailFromSupabase(email: string): Promise<Admin | null> {
+  if (!isSupabaseConfigured || !email) return null;
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .ilike('email', normalizedEmail)
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      return null;
+    }
+    return mapDbAdminToAdmin(data[0]);
+  } catch (err) {
+    console.warn('[supabase] Error querying admin by email:', err);
+    return null;
+  }
+}
+
+export async function createAdminInSupabase(admin: Admin): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  try {
+    const mapped = mapAdminToDbAdmin(admin);
+    const { error } = await supabase
+      .from('admins')
+      .upsert(mapped, { onConflict: 'id' });
+    if (error) {
+      console.warn('[supabase] Failed to create/update admin in Supabase:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[supabase] Exception in createAdminInSupabase:', err);
+    return false;
+  }
+}
+
+export async function deleteAdminInSupabase(adminId: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  try {
+    const { error } = await supabase
+      .from('admins')
+      .delete()
+      .eq('id', adminId);
+    if (error) {
+      console.warn('[supabase] Failed to delete admin in Supabase:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('[supabase] Exception in deleteAdminInSupabase:', err);
+    return false;
   }
 }
 
@@ -226,12 +326,19 @@ export async function updateUserProfileInSupabase(userId: string, profileData: P
 // ─── Realtime Subscriptions (Native WebSockets) ───
 
 let realtimeChannel: any = null;
+let realtimeAdminChannel: any = null;
 
-export function initSupabaseRealtime(onUserUpdate: (user: User) => void): void {
+export function initSupabaseRealtime(
+  onUserUpdate: (user: User) => void,
+  onAdminUpdate?: (admin: Admin, eventType: string) => void
+): void {
   if (!isSupabaseConfigured || typeof window === 'undefined') return;
 
   if (realtimeChannel) {
     supabase.removeChannel(realtimeChannel);
+  }
+  if (realtimeAdminChannel) {
+    supabase.removeChannel(realtimeAdminChannel);
   }
 
   realtimeChannel = supabase
@@ -252,5 +359,22 @@ export function initSupabaseRealtime(onUserUpdate: (user: User) => void): void {
         // Realtime connection active
       }
     });
+
+  if (onAdminUpdate) {
+    realtimeAdminChannel = supabase
+      .channel('public:admins:realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'admins' },
+        (payload) => {
+          const row = payload.new || payload.old;
+          if (row) {
+            const admin = mapDbAdminToAdmin(row);
+            onAdminUpdate(admin, payload.eventType);
+          }
+        }
+      )
+      .subscribe();
+  }
 }
 

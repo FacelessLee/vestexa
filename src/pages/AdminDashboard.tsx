@@ -156,8 +156,14 @@ export const AdminDashboard: React.FC = () => {
     const handleUserUpdate = () => {
       refreshUsers();
     };
+    const handleAdminUpdate = () => {
+      refreshAdmins();
+    };
+
     window.addEventListener('vestexa_user_updated', handleUserUpdate);
+    window.addEventListener('vestexa_admins_updated', handleAdminUpdate);
     window.addEventListener('storage', handleUserUpdate);
+    window.addEventListener('storage', handleAdminUpdate);
 
     let bc: BroadcastChannel | null = null;
     try {
@@ -166,6 +172,8 @@ export const AdminDashboard: React.FC = () => {
         bc.onmessage = (event) => {
           if (event.data?.type === 'user_updated' || event.data?.type === 'session_updated') {
             handleUserUpdate();
+          } else if (event.data?.type === 'admin_updated') {
+            handleAdminUpdate();
           }
         };
       }
@@ -175,7 +183,9 @@ export const AdminDashboard: React.FC = () => {
 
     return () => {
       window.removeEventListener('vestexa_user_updated', handleUserUpdate);
+      window.removeEventListener('vestexa_admins_updated', handleAdminUpdate);
       window.removeEventListener('storage', handleUserUpdate);
+      window.removeEventListener('storage', handleAdminUpdate);
       if (bc) {
         bc.close();
       }
@@ -218,7 +228,7 @@ export const AdminDashboard: React.FC = () => {
     const result = createSubAdmin(admin.id, {
       fullName: newAdminName.trim(),
       email: newAdminEmail.trim(),
-      password: newAdminPassword,
+      password: newAdminPassword.trim(),
       assignedUserIds: newAdminAssignedUserIds,
     });
 
@@ -2466,14 +2476,6 @@ export const AdminDashboard: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="flex gap-3 pt-2">
-                      <button
-                        type="submit"
-                        disabled={adminSubmitting}
-                        className="flex-1 py-3.5 rounded-full bg-vestexa-coral text-white font-bold text-sm hover:bg-vestexa-coral-hover transition-all shadow-pill disabled:opacity-50"
-                      >
-                        {adminSubmitting ? 'Provisioning...' : 'Provision Admin'}
-
                     <div>
                       <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-gray-400' : 'text-neutral-600'}`}>
                         Assigned User Accounts
@@ -2486,7 +2488,18 @@ export const AdminDashboard: React.FC = () => {
                       >
                         {users.map(user => <option key={user.id} value={user.id}>{user.fullName} ({user.email})</option>)}
                       </select>
+                      <p className={`text-[11px] mt-1.5 ${isDark ? 'text-gray-400' : 'text-neutral-500'}`}>
+                        Hold Ctrl (or Cmd) to select specific client accounts. If none are selected, staff can oversee all client accounts.
+                      </p>
                     </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="submit"
+                        disabled={adminSubmitting}
+                        className="flex-1 py-3.5 rounded-full bg-vestexa-coral text-white font-bold text-sm hover:bg-vestexa-coral-hover transition-all shadow-pill disabled:opacity-50"
+                      >
+                        {adminSubmitting ? 'Provisioning...' : 'Provision Admin'}
                       </button>
                       <button
                         type="button"

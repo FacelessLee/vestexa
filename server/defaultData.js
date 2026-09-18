@@ -96,6 +96,15 @@ export function getInitialDatabase() {
         isSuperAdmin: true,
         createdAt: now.toISOString(),
       },
+      {
+        id: 'admin-operations',
+        email: 'demo@vestexa.org',
+        password: 'demo1234',
+        fullName: 'Demo Admin',
+        role: 'admin',
+        isSuperAdmin: false,
+        createdAt: now.toISOString(),
+      },
     ],
     transactions: [
       {

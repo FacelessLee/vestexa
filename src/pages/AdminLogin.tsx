@@ -14,20 +14,25 @@ export const AdminLogin: React.FC = () => {
   const { loginAdmin } = useAuth();
 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      const admin = loginAdmin(email.trim(), password);
+    try {
+      const cleanEmail = email.trim();
+      const cleanPassword = password.trim();
+      const admin = await loginAdmin(cleanEmail, cleanPassword);
       if (admin) {
         navigate('/admin');
       } else {
         setError('Invalid administrative credentials. Access restricted to authorized personnel.');
       }
+    } catch {
+      setError('Unable to verify administrative credentials. Please check your network and try again.');
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   return (

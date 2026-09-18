@@ -1,13 +1,15 @@
-// localStorage CRUD helpers for Vestexa demo platform with server-backed real-time sync
 import {
   pushBalanceUpdate,
   pushRestriction,
   pushLiftRestriction,
   pushUserProfile,
   pushFullSync,
+  pushAdmin,
+  pushDeleteAdmin,
   fetchServerStorage,
   applyServerStorageToLocal,
 } from './syncEngine';
+import { fetchAdminByEmailFromSupabase } from './supabase';
 
 export interface QuickTransferContact {
 
@@ -898,17 +900,22 @@ export function getAdmins(): Admin[] {
 
   // Guarantee that the single default super admin (admin@vestexa.org) has super_admin role
   const normalized = admins.map(a => {
-    if (a.email.toLowerCase() === 'admin@vestexa.org' && (!a.isSuperAdmin || a.role !== 'super_admin')) {
+    const email = (a.email || '').toLowerCase().trim();
+    if (email === 'admin@vestexa.org' && (!a.isSuperAdmin || a.role !== 'super_admin')) {
       updated = true;
-      return { ...a, role: 'super_admin' as const, isSuperAdmin: true };
+      return { ...a, email, role: 'super_admin' as const, isSuperAdmin: true };
     }
     if (!a.role) {
       updated = true;
-      return { ...a, role: 'admin' as const, isSuperAdmin: false };
+      return { ...a, email, role: 'admin' as const, isSuperAdmin: false };
     }
     if (!a.assignedUserIds) {
       updated = true;
-      return { ...a, assignedUserIds: [] };
+      return { ...a, email, assignedUserIds: [] };
+    }
+    if (a.email !== email) {
+      updated = true;
+      return { ...a, email };
     }
     return a;
   });
@@ -921,7 +928,8 @@ export function getAdmins(): Admin[] {
 }
 
 export function getAdminByEmail(email: string): Admin | undefined {
-  return getAdmins().find(a => a.email.toLowerCase() === email.toLowerCase());
+  const cleanEmail = (email || '').toLowerCase().trim();
+  return getAdmins().find(a => (a.email || '').toLowerCase().trim() === cleanEmail);
 }
 
 export function getAdminById(id: string): Admin | undefined {
@@ -933,7 +941,7 @@ export function isSuperAdmin(admin: Admin | null | undefined): boolean {
   return Boolean(
     admin.isSuperAdmin ||
     admin.role === 'super_admin' ||
-    admin.email.toLowerCase() === 'admin@vestexa.org'
+    (admin.email && admin.email.toLowerCase().trim() === 'admin@vestexa.org')
   );
 }
 
@@ -941,18 +949,28 @@ export function getUsersAssignedToAdmin(admin: Admin | null | undefined): User[]
   const users = getUsers();
   if (!admin || isSuperAdmin(admin)) return users;
   const assignedUserIds = new Set(admin.assignedUserIds || []);
+  if (assignedUserIds.size === 0) {
+    // Operations staff without explicitly restricted accounts default to seeing all active users
+    return users;
+  }
   return users.filter(user => assignedUserIds.has(user.id));
 }
 
 export function createAdmin(data: Omit<Admin, 'id' | 'createdAt'> & { role?: 'super_admin' | 'admin'; isSuperAdmin?: boolean }): Admin {
   const admins = getAdmins();
-  const isTargetSuper = data.email.toLowerCase() === 'admin@vestexa.org' || data.isSuperAdmin || data.role === 'super_admin';
+  const cleanEmail = (data.email || '').toLowerCase().trim();
+  const isTargetSuper = cleanEmail === 'admin@vestexa.org' || data.isSuperAdmin || data.role === 'super_admin';
+
+  const existing = admins.find(a => (a.email || '').toLowerCase().trim() === cleanEmail);
+  if (existing) {
+    return existing;
+  }
 
   const admin: Admin = {
     id: generateId(),
-    email: data.email,
+    email: cleanEmail,
     password: data.password,
-    fullName: data.fullName,
+    fullName: (data.fullName || '').trim(),
     role: isTargetSuper ? 'super_admin' : 'admin',
     isSuperAdmin: isTargetSuper,
     assignedUserIds: data.assignedUserIds || [],
@@ -961,6 +979,7 @@ export function createAdmin(data: Omit<Admin, 'id' | 'createdAt'> & { role?: 'su
 
   admins.push(admin);
   setItem(KEYS.ADMINS, admins);
+  pushAdmin(admin).catch((e) => console.warn('[storage] Error pushing admin:', e));
   return admin;
 }
 
@@ -980,20 +999,25 @@ export function createSubAdmin(
     return { success: false, error: 'Unauthorized: Only the designated Super Admin can provision admin accounts.' };
   }
 
-  if (getAdminByEmail(data.email)) {
+  const cleanEmail = (data.email || '').toLowerCase().trim();
+  if (!cleanEmail) {
+    return { success: false, error: 'Email address is required.' };
+  }
+
+  if (getAdminByEmail(cleanEmail)) {
     return { success: false, error: 'An admin account with this email already exists.' };
   }
 
-  if (data.email.toLowerCase() === 'admin@vestexa.org') {
+  if (cleanEmail === 'admin@vestexa.org') {
     return { success: false, error: 'Super Admin address is reserved.' };
   }
 
   const admins = getAdmins();
   const newAdmin: Admin = {
     id: generateId(),
-    email: data.email.trim(),
+    email: cleanEmail,
     password: data.password,
-    fullName: data.fullName.trim(),
+    fullName: (data.fullName || '').trim(),
     role: 'admin',
     isSuperAdmin: false,
     assignedUserIds: [...new Set(data.assignedUserIds || [])],
@@ -1002,6 +1026,12 @@ export function createSubAdmin(
 
   admins.push(newAdmin);
   setItem(KEYS.ADMINS, admins);
+
+  // Synchronize to Supabase cloud database & server backend
+  pushAdmin(newAdmin).catch((err) => {
+    console.warn('[storage] Error syncing newly provisioned admin to cloud database:', err);
+  });
+
   return { success: true, admin: newAdmin };
 }
 
@@ -1027,6 +1057,7 @@ export function updateAdminAssignments(
     : a
   );
   setItem(KEYS.ADMINS, updated);
+  pushFullSync({ admins: updated });
   return { success: true };
 }
 
@@ -1057,12 +1088,80 @@ export function deleteSubAdmin(
   const admins = getAdmins();
   const updated = admins.filter(a => a.id !== targetAdminId);
   setItem(KEYS.ADMINS, updated);
+
+  pushDeleteAdmin(targetAdminId).catch((err) => {
+    console.warn('[storage] Error syncing admin deletion to cloud database:', err);
+  });
+
   return { success: true };
 }
 
 export function authenticateAdmin(email: string, password: string): Admin | null {
-  const admin = getAdminByEmail(email);
-  if (admin && admin.password === password) return admin;
+  const cleanEmail = (email || '').toLowerCase().trim();
+  const cleanPassword = (password || '').trim();
+  const admin = getAdminByEmail(cleanEmail);
+  if (admin && (admin.password === password || admin.password === cleanPassword)) return admin;
+  return null;
+}
+
+export async function authenticateAdminAsync(email: string, password: string): Promise<Admin | null> {
+  const cleanEmail = (email || '').toLowerCase().trim();
+  const cleanPassword = (password || '').trim();
+  if (!cleanEmail) return null;
+
+  // 1. Try local authentication first (instant)
+  const localAuth = authenticateAdmin(cleanEmail, cleanPassword);
+  if (localAuth) return localAuth;
+
+  // 2. Direct remote query to Supabase (handles accounts created via database or other devices)
+  try {
+    const remoteAdmin = await fetchAdminByEmailFromSupabase(cleanEmail);
+    if (remoteAdmin) {
+      // Merge into local storage so subsequent lookups are fast
+      const admins = getAdmins();
+      const idx = admins.findIndex(a => (a.email || '').toLowerCase().trim() === cleanEmail);
+      if (idx !== -1) {
+        admins[idx] = { ...admins[idx], ...remoteAdmin };
+      } else {
+        admins.push(remoteAdmin);
+      }
+      setItem(KEYS.ADMINS, admins);
+      window.dispatchEvent(new CustomEvent('vestexa_admins_updated', { detail: { admin: remoteAdmin } }));
+
+      if (remoteAdmin.password === cleanPassword || remoteAdmin.password === password) {
+        return remoteAdmin;
+      }
+    }
+  } catch (err) {
+    console.warn('[storage] Error during authenticateAdminAsync remote lookup:', err);
+  }
+
+  // 3. Fallback to server API /api/storage (handles offline or local server syncing)
+  try {
+    const res = await fetch('/api/storage');
+    if (res.ok) {
+      const db = await res.json();
+      if (Array.isArray(db.admins)) {
+        const found = db.admins.find((a: any) => (a.email || '').toLowerCase().trim() === cleanEmail);
+        if (found) {
+          const admins = getAdmins();
+          const idx = admins.findIndex(a => (a.email || '').toLowerCase().trim() === cleanEmail);
+          if (idx !== -1) {
+            admins[idx] = { ...admins[idx], ...found };
+          } else {
+            admins.push(found);
+          }
+          setItem(KEYS.ADMINS, admins);
+          if (found.password === cleanPassword || found.password === password) {
+            return found;
+          }
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   return null;
 }
 

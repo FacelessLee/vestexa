@@ -7,6 +7,7 @@ import {
   setCurrentAdmin,
   authenticateUser,
   authenticateAdmin,
+  authenticateAdminAsync,
   getUserById,
   verifyUserPin,
   broadcastUserUpdate,
@@ -17,7 +18,7 @@ interface AuthContextType {
   admin: Admin | null;
   loginUser: (email: string, password: string) => User | null;
   verifyPin: (pin: string) => { success: boolean; message: string };
-  loginAdmin: (email: string, password: string) => Admin | null;
+  loginAdmin: (email: string, password: string) => Promise<Admin | null>;
   logoutUser: () => void;
   logoutAdmin: () => void;
   refreshUser: () => void;
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     window.addEventListener('vestexa_user_updated', handleUpdate);
+    window.addEventListener('vestexa_admins_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
 
     let bc: BroadcastChannel | null = null;
@@ -74,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       window.removeEventListener('vestexa_user_updated', handleUpdate);
+      window.removeEventListener('vestexa_admins_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
       if (bc) {
         bc.close();
@@ -109,8 +112,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return res;
   }, []);
 
-  const loginAdmin = useCallback((email: string, password: string): Admin | null => {
-    const a = authenticateAdmin(email, password);
+  const loginAdmin = useCallback(async (email: string, password: string): Promise<Admin | null> => {
+    let a = authenticateAdmin(email, password);
+    if (!a) {
+      a = await authenticateAdminAsync(email, password);
+    }
     if (a) {
       setCurrentAdmin(a);
       setAdmin(a);
@@ -118,15 +124,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return a;
   }, []);
 
+  const logoutAdmin = useCallback(() => {
+    setCurrentAdmin(null);
+    setAdmin(null);
+  }, []);
+
   const logoutUser = useCallback(() => {
     setCurrentUser(null);
     setUser(null);
     broadcastUserUpdate();
-  }, []);
-
-  const logoutAdmin = useCallback(() => {
-    setCurrentAdmin(null);
-    setAdmin(null);
   }, []);
 
   return (

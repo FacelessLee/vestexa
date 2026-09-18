@@ -7,10 +7,10 @@
       "fullName": "Stonebridge Rose",
       "username": "stonebridge",
       "accountNumber": "VX-89210041",
-      "balance": 372560,
+      "balance": 343860,
       "investedAmount": 58000,
       "amountSpent": 4500,
-      "roi": 6900,
+      "roi": 11940,
       "bonus": 25,
       "refBonus": 1250,
       "signupBonusReceived": true,
@@ -105,152 +105,209 @@
       "fullName": "System Admin (Super Admin)",
       "role": "super_admin",
       "isSuperAdmin": true,
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "assignedUserIds": [],
+      "createdAt": "2026-09-17T16:20:07.576917+00:00"
+    },
+    {
+      "id": "admin-operations",
+      "email": "demo@vestexa.org",
+      "password": "demo1234",
+      "fullName": "Demo Admin",
+      "role": "admin",
+      "isSuperAdmin": false,
+      "assignedUserIds": [],
+      "createdAt": "2026-09-18T17:56:00.265475+00:00"
+    },
+    {
+      "id": "1789453874042-kqrrpc8mn",
+      "email": "admin@vestexa.com",
+      "password": "admin1234",
+      "fullName": "System Admin (Super Admin)",
+      "role": "super_admin",
+      "isSuperAdmin": true,
+      "createdAt": "2026-09-15T06:31:14.042Z",
+      "assignedUserIds": []
+    },
+    {
+      "id": "1789758377442-mfh884cty",
+      "email": "marcus.ops@vestexa.org",
+      "password": "MarcusPass!99",
+      "fullName": "Marcus Vance",
+      "role": "admin",
+      "isSuperAdmin": false,
+      "assignedUserIds": [],
+      "createdAt": "2026-09-18T19:06:17.442Z"
     }
   ],
   "transactions": [
     {
-      "id": "seed-stone-1",
       "userId": "user-stonebridge",
       "type": "credit",
       "amount": 1299,
       "narration": "Interest on balance",
       "senderInfo": "Vestexa Treasury",
-      "date": "2026-09-17",
+      "date": "2026-09-15",
       "time": "14:45",
       "category": "Interest",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-0",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-stone-2",
       "userId": "user-stonebridge",
       "type": "credit",
       "amount": 800,
       "narration": "Maintenance fee refund",
       "senderInfo": "Vestexa Operations",
-      "date": "2026-09-16",
+      "date": "2026-09-14",
       "time": "09:30",
       "category": "Deposit",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-1",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-stone-3",
       "userId": "user-stonebridge",
       "type": "debit",
       "amount": 2450,
       "narration": "Wire transfer to Goldman Sachs",
       "senderInfo": "Stonebridge Rose",
-      "date": "2026-09-15",
+      "date": "2026-09-13",
       "time": "16:22",
       "category": "Wire Transfer",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-2",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-stone-4",
       "userId": "user-stonebridge",
       "type": "credit",
       "amount": 15000,
       "narration": "Dividend payout — AAPL Q3",
       "senderInfo": "Apple Inc. Investor Relations",
-      "date": "2026-09-14",
+      "date": "2026-09-12",
       "time": "11:00",
       "category": "Dividend",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-3",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-stone-5",
       "userId": "user-stonebridge",
       "type": "credit",
       "amount": 58000,
       "narration": "Portfolio rebalance settlement",
       "senderInfo": "Vestexa Investment Desk",
-      "date": "2026-09-12",
+      "date": "2026-09-10",
       "time": "08:15",
       "category": "Investment Return",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-4",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-stone-6",
       "userId": "user-stonebridge",
       "type": "debit",
       "amount": 340,
       "narration": "Annual premium card fee",
       "senderInfo": "Vestexa Card Services",
-      "date": "2026-09-10",
+      "date": "2026-09-08",
       "time": "00:01",
       "category": "Fee",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-5",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-bill-1",
       "userId": "user-bill",
       "type": "credit",
       "amount": 45000,
       "narration": "Incoming wire — Ogden Enterprises LLC",
       "senderInfo": "Chase Bank NA / Ogden Enterprises",
-      "date": "2026-09-17",
+      "date": "2026-09-15",
       "time": "10:12",
       "category": "Wire Transfer",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-6",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-bill-2",
       "userId": "user-bill",
       "type": "debit",
       "amount": 12800,
       "narration": "Real estate escrow deposit",
       "senderInfo": "Bill Ogden",
-      "date": "2026-09-16",
+      "date": "2026-09-14",
       "time": "14:30",
       "category": "Wire Transfer",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-7",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-bill-3",
       "userId": "user-bill",
       "type": "credit",
       "amount": 3200,
       "narration": "Treasury yield sweep — monthly",
       "senderInfo": "Vestexa Treasury",
-      "date": "2026-09-15",
+      "date": "2026-09-13",
       "time": "06:00",
       "category": "Interest",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-8",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-bill-4",
       "userId": "user-bill",
       "type": "credit",
       "amount": 89750,
       "narration": "Sale proceeds — MSFT 500 shares",
       "senderInfo": "Vestexa Brokerage",
-      "date": "2026-09-14",
+      "date": "2026-09-12",
       "time": "15:45",
       "category": "Investment Return",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-9",
+      "createdAt": "2026-09-15T06:31:14.042Z"
     },
     {
-      "id": "seed-bill-5",
       "userId": "user-bill",
       "type": "debit",
       "amount": 5600,
       "narration": "International wire — HSBC London",
       "senderInfo": "Bill Ogden",
-      "date": "2026-09-12",
+      "date": "2026-09-10",
       "time": "13:20",
       "category": "Wire Transfer",
       "status": "completed",
-      "createdAt": "2026-09-17T15:45:34.867Z"
+      "id": "seed-1789453874042-10",
+      "createdAt": "2026-09-15T06:31:14.042Z"
+    },
+    {
+      "userId": "user-stonebridge",
+      "type": "credit",
+      "amount": 1260,
+      "narration": "ROI Payout — Balanced Growth Matrix (4.2%)",
+      "senderInfo": "Vestexa Yield Engine",
+      "date": "2026-09-15",
+      "time": "07:31",
+      "category": "Interest",
+      "status": "completed",
+      "id": "1789453874262-2iwje1km5",
+      "createdAt": "2026-09-15T06:31:14.263Z"
+    },
+    {
+      "userId": "user-stonebridge",
+      "type": "credit",
+      "amount": 3780,
+      "narration": "ROI Payout — Balanced Growth Matrix (4.2%)",
+      "senderInfo": "Vestexa Yield Engine",
+      "date": "2026-09-18",
+      "time": "20:02",
+      "category": "Interest",
+      "status": "completed",
+      "id": "1789758140230-t00lr6lcc",
+      "createdAt": "2026-09-18T19:02:20.230Z"
     }
   ],
   "investmentPlans": [
@@ -470,6 +527,6 @@
       "beneficiaries": true
     }
   },
-  "version": 1,
-  "updatedAt": "2026-09-17T15:45:34.867Z"
+  "version": 4,
+  "updatedAt": "2026-09-18T19:06:17.462Z"
 }

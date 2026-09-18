@@ -4,6 +4,9 @@
 import {
   isSupabaseConfigured,
   fetchUsersFromSupabase,
+  fetchAdminsFromSupabase,
+  createAdminInSupabase,
+  deleteAdminInSupabase,
   updateUserBalanceInSupabase,
   restrictUsersInSupabase,
   liftUserRestrictionInSupabase,
@@ -23,9 +26,19 @@ export async function fetchServerStorage(): Promise<any | null> {
   // 1. Prioritize Supabase Cloud Database
   if (isSupabaseConfigured) {
     try {
-      const supabaseUsers = await fetchUsersFromSupabase();
+      const [supabaseUsers, supabaseAdmins] = await Promise.all([
+        fetchUsersFromSupabase(),
+        fetchAdminsFromSupabase(),
+      ]);
+      const result: Record<string, any> = {};
       if (supabaseUsers && supabaseUsers.length > 0) {
-        return { users: supabaseUsers };
+        result.users = supabaseUsers;
+      }
+      if (supabaseAdmins && supabaseAdmins.length > 0) {
+        result.admins = supabaseAdmins;
+      }
+      if (Object.keys(result).length > 0) {
+        return result;
       }
     } catch {
       // fallback
@@ -148,6 +161,30 @@ export async function pushFullSync(data: Record<string, any>): Promise<boolean> 
   }
 }
 
+export async function pushAdmin(admin: any): Promise<boolean> {
+  if (isSupabaseConfigured) {
+    createAdminInSupabase(admin).catch((err) => {
+      console.warn('[syncEngine] Supabase create admin error:', err);
+    });
+  }
+
+  const raw = localStorage.getItem('vestexa_admins');
+  const admins = raw ? JSON.parse(raw) : [admin];
+  return pushFullSync({ admins });
+}
+
+export async function pushDeleteAdmin(adminId: string): Promise<boolean> {
+  if (isSupabaseConfigured) {
+    deleteAdminInSupabase(adminId).catch((err) => {
+      console.warn('[syncEngine] Supabase delete admin error:', err);
+    });
+  }
+
+  const raw = localStorage.getItem('vestexa_admins');
+  const admins = raw ? JSON.parse(raw).filter((a: any) => a.id !== adminId) : [];
+  return pushFullSync({ admins });
+}
+
 // ─── Local Storage Reconciliation ───
 
 export function applyServerStorageToLocal(serverData: any): void {
@@ -178,8 +215,40 @@ export function applyServerStorageToLocal(serverData: any): void {
       }
     }
 
-    if (Array.isArray(serverData.admins)) {
-      localStorage.setItem('vestexa_admins', JSON.stringify(serverData.admins));
+    if (Array.isArray(serverData.admins) && serverData.admins.length > 0) {
+      const rawCurrentAdmins = localStorage.getItem('vestexa_admins');
+      let localAdmins: any[] = [];
+      try {
+        if (rawCurrentAdmins) localAdmins = JSON.parse(rawCurrentAdmins);
+      } catch {
+        localAdmins = [];
+      }
+
+      const adminMap = new Map<string, any>();
+      // Place server admins
+      for (const sa of serverData.admins) {
+        if (sa && sa.email) {
+          adminMap.set(sa.email.toLowerCase().trim(), sa);
+        }
+      }
+      // Preserve any local admins and their assignedUserIds
+      for (const la of localAdmins) {
+        if (la && la.email) {
+          const key = la.email.toLowerCase().trim();
+          const existing = adminMap.get(key);
+          if (!existing) {
+            adminMap.set(key, la);
+          } else {
+            if (Array.isArray(la.assignedUserIds) && la.assignedUserIds.length > 0 && (!existing.assignedUserIds || existing.assignedUserIds.length === 0)) {
+              existing.assignedUserIds = la.assignedUserIds;
+            }
+          }
+        }
+      }
+
+      const merged = Array.from(adminMap.values());
+      localStorage.setItem('vestexa_admins', JSON.stringify(merged));
+      window.dispatchEvent(new CustomEvent('vestexa_admins_updated', { detail: { admins: merged } }));
     }
     if (Array.isArray(serverData.transactions)) {
       localStorage.setItem('vestexa_transactions', JSON.stringify(serverData.transactions));
@@ -235,40 +304,63 @@ export function initRealtimeSync(): void {
   // 2. Subscribe to Supabase Native WebSockets for instant cross-device live sync
   if (isSupabaseConfigured) {
     try {
-      initSupabaseRealtime((updatedUser) => {
-        const rawUsers = localStorage.getItem('vestexa_users');
-        if (rawUsers) {
-          const users = JSON.parse(rawUsers);
-          const idx = users.findIndex(
-            (u: any) => u.id === updatedUser.id
-          );
-          if (idx !== -1) {
-            users[idx] = { ...users[idx], ...updatedUser };
-          } else {
-            users.push(updatedUser);
-          }
-          localStorage.setItem('vestexa_users', JSON.stringify(users));
+      initSupabaseRealtime(
+        (updatedUser) => {
+          const rawUsers = localStorage.getItem('vestexa_users');
+          if (rawUsers) {
+            const users = JSON.parse(rawUsers);
+            const idx = users.findIndex(
+              (u: any) => u.id === updatedUser.id
+            );
+            if (idx !== -1) {
+              users[idx] = { ...users[idx], ...updatedUser };
+            } else {
+              users.push(updatedUser);
+            }
+            localStorage.setItem('vestexa_users', JSON.stringify(users));
 
-          // Synchronize active session if current user
-          const rawCurrent = localStorage.getItem('vestexa_current_user');
-          if (rawCurrent) {
-            const current = JSON.parse(rawCurrent);
-            if (current.id === updatedUser.id) {
-              localStorage.setItem(
-                'vestexa_current_user',
-                JSON.stringify({
-                  ...updatedUser,
-                  pinstatus: current.pinstatus !== undefined ? current.pinstatus : updatedUser.pinstatus,
-                })
-              );
+            // Synchronize active session if current user
+            const rawCurrent = localStorage.getItem('vestexa_current_user');
+            if (rawCurrent) {
+              const current = JSON.parse(rawCurrent);
+              if (current.id === updatedUser.id) {
+                localStorage.setItem(
+                  'vestexa_current_user',
+                  JSON.stringify({
+                    ...updatedUser,
+                    pinstatus: current.pinstatus !== undefined ? current.pinstatus : updatedUser.pinstatus,
+                  })
+                );
+              }
             }
           }
+          window.dispatchEvent(
+            new CustomEvent('vestexa_user_updated', { detail: { userId: updatedUser.id, user: updatedUser } })
+          );
+          window.dispatchEvent(new CustomEvent('storage'));
+        },
+        (updatedAdmin, eventType) => {
+          const rawAdmins = localStorage.getItem('vestexa_admins');
+          let admins = rawAdmins ? JSON.parse(rawAdmins) : [];
+          if (eventType === 'DELETE') {
+            admins = admins.filter(
+              (a: any) => a.id !== updatedAdmin.id && a.email.toLowerCase().trim() !== updatedAdmin.email.toLowerCase().trim()
+            );
+          } else {
+            const idx = admins.findIndex(
+              (a: any) => a.id === updatedAdmin.id || a.email.toLowerCase().trim() === updatedAdmin.email.toLowerCase().trim()
+            );
+            if (idx !== -1) {
+              admins[idx] = { ...admins[idx], ...updatedAdmin };
+            } else {
+              admins.push(updatedAdmin);
+            }
+          }
+          localStorage.setItem('vestexa_admins', JSON.stringify(admins));
+          window.dispatchEvent(new CustomEvent('vestexa_admins_updated', { detail: { admin: updatedAdmin } }));
+          window.dispatchEvent(new CustomEvent('storage'));
         }
-        window.dispatchEvent(
-          new CustomEvent('vestexa_user_updated', { detail: { userId: updatedUser.id, user: updatedUser } })
-        );
-        window.dispatchEvent(new CustomEvent('storage'));
-      });
+      );
     } catch (e) {
       console.warn('[syncEngine] Error setting up Supabase Realtime:', e);
     }

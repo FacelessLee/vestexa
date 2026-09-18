@@ -132,6 +132,14 @@ export function seedDemoData(): void {
     isSuperAdmin: true,
   });
 
+  createAdmin({
+    email: 'demo@vestexa.org',
+    password: 'demo1234',
+    fullName: 'Demo Admin',
+    role: 'admin',
+    isSuperAdmin: false,
+  });
+
   // ─── Seed realistic transactions ───
 
   const now = new Date();
