@@ -91,6 +91,7 @@ export interface Admin {
   fullName: string;
   role: 'super_admin' | 'admin';
   isSuperAdmin?: boolean;
+  assignedUserIds?: string[];
   createdAt: string;
 }
 
@@ -905,6 +906,10 @@ export function getAdmins(): Admin[] {
       updated = true;
       return { ...a, role: 'admin' as const, isSuperAdmin: false };
     }
+    if (!a.assignedUserIds) {
+      updated = true;
+      return { ...a, assignedUserIds: [] };
+    }
     return a;
   });
 
@@ -932,6 +937,13 @@ export function isSuperAdmin(admin: Admin | null | undefined): boolean {
   );
 }
 
+export function getUsersAssignedToAdmin(admin: Admin | null | undefined): User[] {
+  const users = getUsers();
+  if (!admin || isSuperAdmin(admin)) return users;
+  const assignedUserIds = new Set(admin.assignedUserIds || []);
+  return users.filter(user => assignedUserIds.has(user.id));
+}
+
 export function createAdmin(data: Omit<Admin, 'id' | 'createdAt'> & { role?: 'super_admin' | 'admin'; isSuperAdmin?: boolean }): Admin {
   const admins = getAdmins();
   const isTargetSuper = data.email.toLowerCase() === 'admin@vestexa.org' || data.isSuperAdmin || data.role === 'super_admin';
@@ -943,6 +955,7 @@ export function createAdmin(data: Omit<Admin, 'id' | 'createdAt'> & { role?: 'su
     fullName: data.fullName,
     role: isTargetSuper ? 'super_admin' : 'admin',
     isSuperAdmin: isTargetSuper,
+    assignedUserIds: data.assignedUserIds || [],
     createdAt: new Date().toISOString(),
   };
 
@@ -960,7 +973,7 @@ export function createAdmin(data: Omit<Admin, 'id' | 'createdAt'> & { role?: 'su
  */
 export function createSubAdmin(
   superAdminId: string,
-  data: { fullName: string; email: string; password: string }
+  data: { fullName: string; email: string; password: string; assignedUserIds?: string[] }
 ): { success: boolean; error?: string; admin?: Admin } {
   const requester = getAdminById(superAdminId);
   if (!requester || !isSuperAdmin(requester)) {
@@ -983,12 +996,38 @@ export function createSubAdmin(
     fullName: data.fullName.trim(),
     role: 'admin',
     isSuperAdmin: false,
+    assignedUserIds: [...new Set(data.assignedUserIds || [])],
     createdAt: new Date().toISOString(),
   };
 
   admins.push(newAdmin);
   setItem(KEYS.ADMINS, admins);
   return { success: true, admin: newAdmin };
+}
+
+export function updateAdminAssignments(
+  superAdminId: string,
+  targetAdminId: string,
+  assignedUserIds: string[]
+): { success: boolean; error?: string } {
+  const requester = getAdminById(superAdminId);
+  if (!requester || !isSuperAdmin(requester)) {
+    return { success: false, error: 'Unauthorized: Only the Super Admin can assign user accounts.' };
+  }
+
+  const admins = getAdmins();
+  const target = admins.find(a => a.id === targetAdminId);
+  if (!target || isSuperAdmin(target)) {
+    return { success: false, error: 'Only operations staff can receive account assignments.' };
+  }
+
+  const validUserIds = new Set(getUsers().map(user => user.id));
+  const updated = admins.map(a => a.id === targetAdminId
+    ? { ...a, assignedUserIds: [...new Set(assignedUserIds.filter(id => validUserIds.has(id)))] }
+    : a
+  );
+  setItem(KEYS.ADMINS, updated);
+  return { success: true };
 }
 
 /**

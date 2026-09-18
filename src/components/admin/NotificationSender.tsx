@@ -9,22 +9,24 @@ import {
 } from '../../lib/storage';
 
 interface NotificationSenderProps {
+  users: User[];
+  allowBroadcast?: boolean;
   isDark?: boolean;
 }
 
-export const NotificationSender: React.FC<NotificationSenderProps> = ({ isDark = true }) => {
-  const [users, setUsers] = useState<User[]>([]);
+export const NotificationSender: React.FC<NotificationSenderProps> = ({ users: assignedUsers, allowBroadcast = false, isDark = true }) => {
+  const [users, setUsers] = useState<User[]>(assignedUsers);
   const [recentNotifications, setRecentNotifications] = useState<AppNotification[]>([]);
-  const [targetUserId, setTargetUserId] = useState<string>('all');
+  const [targetUserId, setTargetUserId] = useState<string>(allowBroadcast ? 'all' : assignedUsers[0]?.id || '');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [type, setType] = useState<AppNotification['type']>('info');
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    setUsers(getUsers());
+    setUsers(assignedUsers);
     loadNotifications();
-  }, []);
+  }, [assignedUsers]);
 
   const loadNotifications = () => {
     // Get all notifications by querying for 'all' + individual users
@@ -35,6 +37,7 @@ export const NotificationSender: React.FC<NotificationSenderProps> = ({ isDark =
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !message.trim()) return;
+    if (!targetUserId || (!allowBroadcast && targetUserId === 'all')) return;
 
     createNotification({
       userId: targetUserId,
@@ -106,7 +109,7 @@ export const NotificationSender: React.FC<NotificationSenderProps> = ({ isDark =
                     : 'bg-[#FFF6F5] border-[#FEE9E6] text-gray-900 focus:bg-white'
                 }`}
               >
-                <option value="all">Broadcast to ALL Platform Users</option>
+                {allowBroadcast && <option value="all">Broadcast to ALL Platform Users</option>}
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.fullName} ({u.email})

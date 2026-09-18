@@ -7,20 +7,22 @@ import {
 } from '../../lib/storage';
 
 interface KycManagerProps {
+  users: User[];
   isDark?: boolean;
 }
 
-export const KycManager: React.FC<KycManagerProps> = ({ isDark = true }) => {
-  const [users, setUsers] = useState<User[]>([]);
+export const KycManager: React.FC<KycManagerProps> = ({ users: assignedUsers, isDark = true }) => {
+  const [users, setUsers] = useState<User[]>(assignedUsers);
   const [previewDoc, setPreviewDoc] = useState<{ url: string; title: string } | null>(null);
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [assignedUsers]);
 
   const loadUsers = () => {
-    setUsers(getUsers());
+    const assignedIds = new Set(assignedUsers.map(user => user.id));
+    setUsers(getUsers().filter(user => assignedIds.has(user.id)));
   };
 
   const handleUpdateKyc = (userId: string, newStatus: User['kycStatus']) => {

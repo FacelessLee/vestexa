@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   LoanApplication,
+  User,
   getLoans,
   updateLoanStatus,
   getUserById,
@@ -10,20 +11,22 @@ import {
 
 interface LoanManagerProps {
   formatCurrency: (amount: number) => string;
+  users: User[];
   isDark?: boolean;
 }
 
-export const LoanManager: React.FC<LoanManagerProps> = ({ formatCurrency, isDark = true }) => {
+export const LoanManager: React.FC<LoanManagerProps> = ({ formatCurrency, users, isDark = true }) => {
   const [loans, setLoans] = useState<LoanApplication[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
     loadLoans();
-  }, []);
+  }, [users]);
 
   const loadLoans = () => {
-    setLoans(getLoans());
+    const assignedIds = new Set(users.map(user => user.id));
+    setLoans(getLoans().filter(loan => assignedIds.has(loan.userId)));
   };
 
   const handleStatusChange = (id: string, newStatus: LoanApplication['status']) => {

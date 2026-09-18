@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 
 interface RestrictionCmsProps {
   isDark?: boolean;
+  users: User[];
   preselectedUserId?: string;
   onNavigateToUser?: (userId: string) => void;
 }
@@ -58,6 +59,7 @@ No transactional or balance withdrawals can be executed during this restraint wi
 
 export const RestrictionCms: React.FC<RestrictionCmsProps> = ({
   isDark = false,
+  users: assignedUsers,
   preselectedUserId,
 }) => {
   const { admin } = useAuth();
@@ -76,7 +78,7 @@ export const RestrictionCms: React.FC<RestrictionCmsProps> = ({
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [assignedUsers]);
 
   useEffect(() => {
     if (preselectedUserId) {
@@ -90,8 +92,7 @@ export const RestrictionCms: React.FC<RestrictionCmsProps> = ({
   }, [preselectedUserId, users]);
 
   const loadUsers = () => {
-    const all = getUsers();
-    setUsers(all);
+    setUsers(assignedUsers);
   };
 
   const showNotice = (text: string, type: 'success' | 'error') => {

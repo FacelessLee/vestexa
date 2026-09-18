@@ -11,8 +11,10 @@ import {
   updateUserFullCardDetails,
   updateUserProfile,
   getAdmins,
+  getUsersAssignedToAdmin,
   isSuperAdmin,
   createSubAdmin,
+  updateAdminAssignments,
   deleteSubAdmin,
   getWithdrawals,
   getLoans,
@@ -74,6 +76,7 @@ export const AdminDashboard: React.FC = () => {
   const [newAdminName, setNewAdminName] = useState('');
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [newAdminAssignedUserIds, setNewAdminAssignedUserIds] = useState<string[]>([]);
   const [adminSubmitting, setAdminSubmitting] = useState(false);
 
   // Create transaction form state
@@ -140,6 +143,13 @@ export const AdminDashboard: React.FC = () => {
       navigate('/admin/login');
       return;
     }
+    if (!isSuperAdmin(admin) && (activeTab === 'settings' || activeTab === 'admins')) {
+      setActiveTab('users');
+    }
+  }, [admin, navigate, activeTab]);
+
+  useEffect(() => {
+    if (!admin) return;
     refreshUsers();
     refreshAdmins();
 
@@ -170,7 +180,7 @@ export const AdminDashboard: React.FC = () => {
         bc.close();
       }
     };
-  }, [admin, navigate]);
+  }, [admin]);
 
   useEffect(() => {
     if (selectedUserId) {
@@ -179,7 +189,7 @@ export const AdminDashboard: React.FC = () => {
   }, [selectedUserId]);
 
   const refreshUsers = () => {
-    const fresh = getUsers();
+    const fresh = getUsersAssignedToAdmin(admin);
     setUsers(fresh);
     if (fresh.length > 0 && !selectedUserId) {
       setSelectedUserId(fresh[0].id);
@@ -209,6 +219,7 @@ export const AdminDashboard: React.FC = () => {
       fullName: newAdminName.trim(),
       email: newAdminEmail.trim(),
       password: newAdminPassword,
+      assignedUserIds: newAdminAssignedUserIds,
     });
 
     if (result.success) {
@@ -217,11 +228,23 @@ export const AdminDashboard: React.FC = () => {
       setNewAdminName('');
       setNewAdminEmail('');
       setNewAdminPassword('');
+      setNewAdminAssignedUserIds([]);
       setShowAdminModal(false);
     } else {
       showError(result.error || 'Failed to provision admin account.');
     }
     setAdminSubmitting(false);
+  };
+
+  const handleAssignmentChange = (targetAdmin: Admin, assignedUserIds: string[]) => {
+    if (!admin || !isSuperAdmin(admin)) return;
+    const result = updateAdminAssignments(admin.id, targetAdmin.id, assignedUserIds);
+    if (result.success) {
+      refreshAdmins();
+      showSuccess(`Account assignments updated for ${targetAdmin.fullName}.`);
+    } else {
+      showError(result.error || 'Failed to update account assignments.');
+    }
   };
 
   const handleDeleteAdminClick = (targetAdmin: Admin) => {
@@ -564,7 +587,7 @@ export const AdminDashboard: React.FC = () => {
             User Accounts
           </button>
 
-          <button
+          {isSuperAdmin(admin) && <button
             onClick={() => {
               setCmsPreselectedUserId(undefined);
               setActiveTab('restrictions');
@@ -586,7 +609,7 @@ export const AdminDashboard: React.FC = () => {
                 {users.filter(u => u.isRestricted).length}
               </span>
             )}
-          </button>
+          </button>}
 
           <button
             onClick={() => setActiveTab('create')}
@@ -700,7 +723,7 @@ export const AdminDashboard: React.FC = () => {
             Broadcasts
           </button>
 
-          <button
+          {isSuperAdmin(admin) && <button
             onClick={() => setActiveTab('settings')}
             className={`flex items-center gap-3 px-4 py-2.5 rounded-pill font-bold text-xs transition-all duration-200 w-full text-left ${
               activeTab === 'settings'
@@ -712,9 +735,9 @@ export const AdminDashboard: React.FC = () => {
           >
             <span className="material-symbols-outlined text-lg">tune</span>
             System Settings
-          </button>
+          </button>}
 
-          <button
+          {isSuperAdmin(admin) && <button
             onClick={() => setActiveTab('admins')}
             className={`flex items-center gap-3 px-4 py-2.5 rounded-pill font-bold text-xs transition-all duration-200 w-full text-left ${
               activeTab === 'admins'
@@ -731,7 +754,7 @@ export const AdminDashboard: React.FC = () => {
                 Super
               </span>
             )}
-          </button>
+          </button>}
         </div>
 
         <div className={`mt-auto space-y-2 pt-6 border-t ${isDark ? 'border-white/10' : 'border-vestexa-peach-border'}`}>
@@ -818,7 +841,7 @@ export const AdminDashboard: React.FC = () => {
               { tab: 'users' as const, icon: 'group', label: 'Users' },
               { tab: 'create' as const, icon: 'add_card', label: 'Create' },
               { tab: 'history' as const, icon: 'receipt_long', label: 'Manage' },
-              { tab: 'admins' as const, icon: 'shield_person', label: 'Admins' },
+              ...(isSuperAdmin(admin) ? [{ tab: 'admins' as const, icon: 'shield_person', label: 'Admins' }] : []),
             ].map(({ tab, icon, label }) => (
               <button
                 key={tab}
@@ -1634,6 +1657,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'restrictions' && (
               <RestrictionCms
                 isDark={isDark}
+                users={users}
                 preselectedUserId={cmsPreselectedUserId}
               />
             )}
@@ -2194,31 +2218,31 @@ export const AdminDashboard: React.FC = () => {
 
             {/* ═══ WITHDRAWALS TAB ═══ */}
             {activeTab === 'withdrawals' && (
-              <WithdrawalManager formatCurrency={formatCurrency} isDark={isDark} />
+              <WithdrawalManager users={users} formatCurrency={formatCurrency} isDark={isDark} />
             )}
 
             {/* ═══ LOANS & CREDIT TAB ═══ */}
             {activeTab === 'loans' && (
-              <LoanManager formatCurrency={formatCurrency} isDark={isDark} />
+              <LoanManager users={users} formatCurrency={formatCurrency} isDark={isDark} />
             )}
 
             {/* ═══ KYC COMPLIANCE TAB ═══ */}
             {activeTab === 'kyc' && (
-              <KycManager isDark={isDark} />
+              <KycManager users={users} isDark={isDark} />
             )}
 
             {/* ═══ NOTIFICATIONS BROADCAST TAB ═══ */}
             {activeTab === 'notifications' && (
-              <NotificationSender isDark={isDark} />
+              <NotificationSender users={users} allowBroadcast={isSuperAdmin(admin)} isDark={isDark} />
             )}
 
             {/* ═══ SYSTEM SETTINGS TAB ═══ */}
-            {activeTab === 'settings' && (
+            {isSuperAdmin(admin) && activeTab === 'settings' && (
               <SettingsPanel isDark={isDark} />
             )}
 
             {/* ═══ ADMIN TEAM & GOVERNANCE TAB ═══ */}
-            {activeTab === 'admins' && (
+            {isSuperAdmin(admin) && activeTab === 'admins' && (
               <div>
                 <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
@@ -2308,6 +2332,19 @@ export const AdminDashboard: React.FC = () => {
                                 )}
                               </div>
                               <span className={`text-xs font-mono ${isDark ? 'text-gray-400' : 'text-neutral-500'}`}>{a.email}</span>
+                              {!isSuper && isSuperAdmin(admin) && (
+                                <label className={`block mt-2 text-[11px] font-semibold ${isDark ? 'text-gray-400' : 'text-neutral-500'}`}>
+                                  Assigned accounts
+                                  <select
+                                    multiple
+                                    value={a.assignedUserIds || []}
+                                    onChange={(event) => handleAssignmentChange(a, Array.from(event.target.selectedOptions, option => option.value))}
+                                    className={`block mt-1 min-w-[220px] rounded-xl border px-2 py-1.5 text-xs ${isDark ? 'bg-[#0B0F14] border-gray-800 text-white' : 'bg-white border-neutral-200 text-neutral-900'}`}
+                                  >
+                                    {users.map(user => <option key={user.id} value={user.id}>{user.fullName}</option>)}
+                                  </select>
+                                </label>
+                              )}
                             </div>
                           </div>
 
@@ -2436,6 +2473,20 @@ export const AdminDashboard: React.FC = () => {
                         className="flex-1 py-3.5 rounded-full bg-vestexa-coral text-white font-bold text-sm hover:bg-vestexa-coral-hover transition-all shadow-pill disabled:opacity-50"
                       >
                         {adminSubmitting ? 'Provisioning...' : 'Provision Admin'}
+
+                    <div>
+                      <label className={`block text-xs font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-gray-400' : 'text-neutral-600'}`}>
+                        Assigned User Accounts
+                      </label>
+                      <select
+                        multiple
+                        value={newAdminAssignedUserIds}
+                        onChange={(event) => setNewAdminAssignedUserIds(Array.from(event.target.selectedOptions, option => option.value))}
+                        className={`w-full min-h-28 text-sm rounded-2xl px-4 py-3 border focus:border-vestexa-coral focus:outline-none ${isDark ? 'bg-[#0B0F14] text-white border-gray-800' : 'bg-neutral-50 text-neutral-900 border-neutral-200'}`}
+                      >
+                        {users.map(user => <option key={user.id} value={user.id}>{user.fullName} ({user.email})</option>)}
+                      </select>
+                    </div>
                       </button>
                       <button
                         type="button"

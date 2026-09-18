@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   WithdrawalRequest,
+  User,
   getWithdrawals,
   updateWithdrawalStatus,
   getUserById,
@@ -9,11 +10,13 @@ import {
 
 interface WithdrawalManagerProps {
   formatCurrency: (amount: number) => string;
+  users: User[];
   isDark?: boolean;
 }
 
 export const WithdrawalManager: React.FC<WithdrawalManagerProps> = ({
   formatCurrency,
+  users,
   isDark = true,
 }) => {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
@@ -22,10 +25,11 @@ export const WithdrawalManager: React.FC<WithdrawalManagerProps> = ({
 
   useEffect(() => {
     loadWithdrawals();
-  }, []);
+  }, [users]);
 
   const loadWithdrawals = () => {
-    setWithdrawals(getWithdrawals());
+    const assignedIds = new Set(users.map(user => user.id));
+    setWithdrawals(getWithdrawals().filter(withdrawal => assignedIds.has(withdrawal.userId)));
   };
 
   const handleStatusChange = (id: string, newStatus: WithdrawalRequest['status']) => {
